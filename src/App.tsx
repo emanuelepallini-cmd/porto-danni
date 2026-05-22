@@ -880,6 +880,18 @@ export default function App() {
         @keyframes spin{to{transform:rotate(360deg)}}
         .spin{animation:spin 1s linear infinite;display:inline-block}
         @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+        button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+        input,select,textarea{font-size:16px!important}
+        @media(max-width:600px){
+          .meteo-row{flex-wrap:wrap;gap:6px!important;padding:8px 12px!important}
+          .meteo-sep{display:none!important}
+          .meteo-forecast{padding:6px 12px!important;gap:10px!important;overflow-x:auto}
+          .header-title{font-size:13px!important}
+          .header-sub{display:none!important}
+          .stat-card{padding:10px 8px!important}
+          .stat-val{font-size:22px!important}
+          .main-pad{padding:14px 10px!important}
+        }
       `}</style>
 
       {showNameModal && <NameModal onConfirm={handleSetName} />}
@@ -892,8 +904,8 @@ export default function App() {
         <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:18, color:YELLOW, textAlign:"center", letterSpacing:2, marginBottom:2 }}>{modal?.fuoriUso?.plate}</div>
         <div style={{ fontSize:13, color:"#3b6fa0", textAlign:"center", marginBottom:22 }}>{modal?.fuoriUso?.vehicleType}</div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={()=>setModal(null)} disabled={busy} style={{ ...btn, flex:1, padding:"11px", borderRadius:8, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, fontSize:14 }}>Annulla</button>
-          <button onClick={confirmDeleteFuoriUso} disabled={busy} style={{ ...btn, flex:2, padding:"11px", borderRadius:8, background:busy?"#555":GREEN, color:"#fff", border:"none", cursor:busy?"default":"pointer", fontSize:14 }}>{busy?"…":"✓ Conferma Rientro"}</button>
+          <button onClick={()=>{ playClick("soft"); setModal(null); }} disabled={busy} style={{ ...btn, flex:1, padding:"11px", borderRadius:8, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, fontSize:14 }}>Annulla</button>
+          <button onClick={()=>{ playClick("success"); confirmDeleteFuoriUso(); }} disabled={busy} style={{ ...btn, flex:2, padding:"11px", borderRadius:8, background:busy?"#555":GREEN, color:"#fff", border:"none", cursor:busy?"default":"pointer", fontSize:14 }}>{busy?"…":"✓ Conferma Rientro"}</button>
         </div>
       </Modal>
       <Modal show={modal?.type==="delete"} onClose={()=>setModal(null)} borderColor={RED} icon="🗑" title="ELIMINA SEGNALAZIONE" titleColor={RED}>
@@ -991,26 +1003,26 @@ export default function App() {
         return (
           <div style={{ background: weather.windSpeed>=40 ? wa.color+"18" : "#0a1628", borderBottom:`1px solid ${weather.windSpeed>=40 ? wa.color+"55" : BORDER}` }}>
             {/* Riga principale */}
-            <div style={{ padding:"8px 20px", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+            <div className="meteo-row" style={{ padding:"8px 20px", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
               <img src={`https://openweathermap.org/img/wn/${weather.icon}.png`} alt="" style={{ width:32, height:32, flexShrink:0 }}/>
               <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                 <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:18, color:"#e8f4ff" }}>{weather.temp}°C</span>
                 <span style={{ fontSize:11, color:"#3b6fa0", textTransform:"capitalize" }}>{weather.description}</span>
               </div>
-              <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+              <div className="meteo-sep" style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
               <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                 <span style={{ fontSize:11, color:"#3b6fa0" }}>💨</span>
                 <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:15, color:wa.color }}>{weather.windSpeed} km/h</span>
                 <span style={{ fontSize:10, color:"#3b6fa0" }}>{windDir(weather.windDeg)}</span>
                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:3, background:wa.color+"22", color:wa.color, border:`1px solid ${wa.color}44` }}>{wa.label}</span>
               </div>
-              <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+              <div className="meteo-sep" style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
               <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                 <span style={{ fontSize:11, color:"#3b6fa0" }}>☀️</span>
                 <span style={{ fontSize:11, color:uv.color, fontWeight:700 }}>UV {weather.uvi}</span>
                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:3, background:uv.color+"22", color:uv.color, border:`1px solid ${uv.color}44` }}>{uv.label}</span>
               </div>
-              <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+              <div className="meteo-sep" style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
               <div style={{ display:"flex", alignItems:"center", gap:5, flexShrink:0 }}>
                 <span style={{ fontSize:11, color:"#3b6fa0" }}>🌧️</span>
                 <span style={{ fontSize:11, color: weather.rainProb>=70?"#60a5fa":weather.rainProb>=40?"#93c5fd":"#3b6fa0", fontWeight:700 }}>{weather.rainProb}%</span>
@@ -1018,7 +1030,7 @@ export default function App() {
               </div>
               {weather.windSpeed>=40 && (
                 <>
-                  <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+                  <div className="meteo-sep" style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
                   <span style={{ fontSize:11, color:wa.color, fontWeight:700 }}>⚠ Verificare condizioni sollevamento</span>
                 </>
               )}
@@ -1026,7 +1038,7 @@ export default function App() {
             </div>
             {/* Previsione prossime 3 ore */}
             {weather.forecast.length > 0 && (
-              <div style={{ borderTop:`1px solid ${BORDER}`, padding:"6px 20px", display:"flex", gap:16, alignItems:"center" }}>
+              <div className="meteo-forecast" style={{ borderTop:`1px solid ${BORDER}`, padding:"6px 20px", display:"flex", gap:16, alignItems:"center", overflowX:"auto" }}>
                 <span style={{ fontSize:9, color:"#3b6fa0", letterSpacing:1.5, fontWeight:700, flexShrink:0 }}>PROSSIME ORE</span>
                 {weather.forecast.map((f,i) => (
                   <div key={i} style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
@@ -1043,7 +1055,7 @@ export default function App() {
         );
       })()}
 
-      <main style={{ maxWidth:740, margin:"0 auto", padding:"20px 14px" }}>
+      <main className="main-pad" style={{ maxWidth:740, margin:"0 auto", padding:"20px 14px" }}>
 
         {/* ════════ DASHBOARD ════════ */}
         {view === "dashboard" && (

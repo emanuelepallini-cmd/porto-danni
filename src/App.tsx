@@ -115,28 +115,55 @@ const OWM_KEY  = "183c56fa8c7c89d75d4d5a5d01bd6c0e";
 const OWM_LAT  = 42.9196;
 const OWM_LON  = 10.5317;
 
+interface ForecastSlot { time: string; temp: number; icon: string; rain: number; windSpeed: number; }
 interface WeatherData {
   temp: number; feels: number; humidity: number;
   description: string; icon: string;
   windSpeed: number; windDeg: number;
   city: string; sunrise: number; sunset: number;
+  uvi: number; rainProb: number;
+  forecast: ForecastSlot[];
 }
 async function fetchWeather(): Promise<WeatherData> {
-  const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${OWM_LAT}&lon=${OWM_LON}&appid=${OWM_KEY}&units=metric&lang=it`);
-  if (!r.ok) throw new Error("meteo non disponibile");
-  const d = await r.json();
+  const [cur, fore, uv] = await Promise.all([
+    fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${OWM_LAT}&lon=${OWM_LON}&appid=${OWM_KEY}&units=metric&lang=it`).then(r=>r.json()),
+    fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${OWM_LAT}&lon=${OWM_LON}&appid=${OWM_KEY}&units=metric&lang=it&cnt=4`).then(r=>r.json()),
+    fetch(`https://api.openweathermap.org/data/2.5/uvi?lat=${OWM_LAT}&lon=${OWM_LON}&appid=${OWM_KEY}`).then(r=>r.json()),
+  ]);
+  const forecast: ForecastSlot[] = (fore.list || []).slice(1,4).map((f: Record<string,unknown>) => {
+    const main = f.main as Record<string,number>;
+    const weather = (f.weather as Record<string,unknown>[])[0] as Record<string,string>;
+    const wind = f.wind as Record<string,number>;
+    return {
+      time: new Date((f.dt as number)*1000).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}),
+      temp: Math.round(main.temp),
+      icon: weather.icon,
+      rain: Math.round(((f.pop as number)||0)*100),
+      windSpeed: Math.round((wind.speed||0)*3.6),
+    };
+  });
   return {
-    temp: Math.round(d.main.temp),
-    feels: Math.round(d.main.feels_like),
-    humidity: d.main.humidity,
-    description: d.weather[0].description,
-    icon: d.weather[0].icon,
-    windSpeed: Math.round(d.wind.speed * 3.6),
-    windDeg: d.wind.deg || 0,
-    city: d.name,
-    sunrise: d.sys.sunrise,
-    sunset: d.sys.sunset,
+    temp: Math.round(cur.main.temp),
+    feels: Math.round(cur.main.feels_like),
+    humidity: cur.main.humidity,
+    description: cur.weather[0].description,
+    icon: cur.weather[0].icon,
+    windSpeed: Math.round(cur.wind.speed * 3.6),
+    windDeg: cur.wind.deg || 0,
+    city: cur.name,
+    sunrise: cur.sys.sunrise,
+    sunset: cur.sys.sunset,
+    uvi: Math.round(uv.value || 0),
+    rainProb: Math.round(((fore.list?.[0]?.pop)||0)*100),
+    forecast,
   };
+}
+function uviLabel(uvi: number) {
+  if (uvi >= 11) return { label:"ESTREMO", color:"#7c3aed" };
+  if (uvi >= 8)  return { label:"MOLTO ALTO", color:"#ef4444" };
+  if (uvi >= 6)  return { label:"ALTO", color:"#f97316" };
+  if (uvi >= 3)  return { label:"MODERATO", color:"#eab308" };
+  return { label:"BASSO", color:"#22c55e" };
 }
 function windDir(deg: number) {
   const dirs = ["N","NE","E","SE","S","SW","O","NO"];
@@ -960,27 +987,58 @@ export default function App() {
       {/* BARRA METEO FISSA */}
       {weather && (() => {
         const wa = windAlert(weather.windSpeed);
+        const uv = uviLabel(weather.uvi);
         return (
-          <div style={{ background: weather.windSpeed>=40 ? wa.color+"18" : "#0a1628", borderBottom:`1px solid ${weather.windSpeed>=40 ? wa.color+"55" : BORDER}`, padding:"8px 20px", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-            <img src={`https://openweathermap.org/img/wn/${weather.icon}.png`} alt="" style={{ width:32, height:32, flexShrink:0 }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
-              <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:18, color:"#e8f4ff" }}>{weather.temp}°C</span>
-              <span style={{ fontSize:11, color:"#3b6fa0", textTransform:"capitalize" }}>{weather.description}</span>
+          <div style={{ background: weather.windSpeed>=40 ? wa.color+"18" : "#0a1628", borderBottom:`1px solid ${weather.windSpeed>=40 ? wa.color+"55" : BORDER}` }}>
+            {/* Riga principale */}
+            <div style={{ padding:"8px 20px", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+              <img src={`https://openweathermap.org/img/wn/${weather.icon}.png`} alt="" style={{ width:32, height:32, flexShrink:0 }}/>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:18, color:"#e8f4ff" }}>{weather.temp}°C</span>
+                <span style={{ fontSize:11, color:"#3b6fa0", textTransform:"capitalize" }}>{weather.description}</span>
+              </div>
+              <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                <span style={{ fontSize:11, color:"#3b6fa0" }}>💨</span>
+                <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:15, color:wa.color }}>{weather.windSpeed} km/h</span>
+                <span style={{ fontSize:10, color:"#3b6fa0" }}>{windDir(weather.windDeg)}</span>
+                <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:3, background:wa.color+"22", color:wa.color, border:`1px solid ${wa.color}44` }}>{wa.label}</span>
+              </div>
+              <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                <span style={{ fontSize:11, color:"#3b6fa0" }}>☀️</span>
+                <span style={{ fontSize:11, color:uv.color, fontWeight:700 }}>UV {weather.uvi}</span>
+                <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:3, background:uv.color+"22", color:uv.color, border:`1px solid ${uv.color}44` }}>{uv.label}</span>
+              </div>
+              <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+              <div style={{ display:"flex", alignItems:"center", gap:5, flexShrink:0 }}>
+                <span style={{ fontSize:11, color:"#3b6fa0" }}>🌧️</span>
+                <span style={{ fontSize:11, color: weather.rainProb>=70?"#60a5fa":weather.rainProb>=40?"#93c5fd":"#3b6fa0", fontWeight:700 }}>{weather.rainProb}%</span>
+                <span style={{ fontSize:10, color:"#3b6fa0" }}>pioggia</span>
+              </div>
+              {weather.windSpeed>=40 && (
+                <>
+                  <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+                  <span style={{ fontSize:11, color:wa.color, fontWeight:700 }}>⚠ Verificare condizioni sollevamento</span>
+                </>
+              )}
+              <div style={{ marginLeft:"auto", fontSize:10, color:"#1e3a5f" }}>📍 Piombino</div>
             </div>
-            <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
-              <span style={{ fontSize:11, color:"#3b6fa0" }}>💨</span>
-              <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:15, color:wa.color }}>{weather.windSpeed} km/h</span>
-              <span style={{ fontSize:10, color:"#3b6fa0" }}>{windDir(weather.windDeg)}</span>
-              <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:3, background:wa.color+"22", color:wa.color, border:`1px solid ${wa.color}44`, letterSpacing:1 }}>{wa.label}</span>
-            </div>
-            {weather.windSpeed>=40 && (
-              <>
-                <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
-                <span style={{ fontSize:11, color:wa.color, fontWeight:700 }}>⚠ Verificare condizioni sollevamento</span>
-              </>
+            {/* Previsione prossime 3 ore */}
+            {weather.forecast.length > 0 && (
+              <div style={{ borderTop:`1px solid ${BORDER}`, padding:"6px 20px", display:"flex", gap:16, alignItems:"center" }}>
+                <span style={{ fontSize:9, color:"#3b6fa0", letterSpacing:1.5, fontWeight:700, flexShrink:0 }}>PROSSIME ORE</span>
+                {weather.forecast.map((f,i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                    <span style={{ fontSize:10, color:"#3b6fa0" }}>{f.time}</span>
+                    <img src={`https://openweathermap.org/img/wn/${f.icon}.png`} alt="" style={{ width:22, height:22 }}/>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#e8f4ff", fontFamily:"Barlow Condensed, sans-serif" }}>{f.temp}°</span>
+                    {f.rain > 0 && <span style={{ fontSize:10, color:"#60a5fa" }}>💧{f.rain}%</span>}
+                    {i < weather.forecast.length-1 && <div style={{ width:1, height:14, background:BORDER, marginLeft:4 }}/>}
+                  </div>
+                ))}
+              </div>
             )}
-            <div style={{ marginLeft:"auto", fontSize:10, color:"#1e3a5f" }}>📍 Piombino</div>
           </div>
         );
       })()}

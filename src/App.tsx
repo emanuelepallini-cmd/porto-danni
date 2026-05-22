@@ -58,6 +58,34 @@ async function insertMessage(author: string, text: string) {
     author, text, created_at: new Date().toISOString()
   })});
 }
+async function insertFeedback(stars: number, text: string, anonymous: boolean, author: string) {
+  return sbFetch("feedback", { method: "POST", body: JSON.stringify({
+    id: "FBK-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,4).toUpperCase(),
+    stars, text, author: anonymous ? "Anonimo" : author,
+    created_at: new Date().toISOString()
+  })});
+}
+async function getFeedback() { return sbFetch("feedback?select=*&order=created_at.desc"); }
+
+// ─── Haptic + Sound ────────────────────────────────────────────────────────────
+function playClick(type: "soft"|"success"|"error" = "soft") {
+  try {
+    if (navigator.vibrate) {
+      if (type === "soft")    navigator.vibrate(8);
+      if (type === "success") navigator.vibrate([10, 30, 10]);
+      if (type === "error")   navigator.vibrate([20, 20, 20]);
+    }
+    const ctx = new (window.AudioContext || (window as unknown as {webkitAudioContext: typeof AudioContext}).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    if (type === "soft")    { osc.frequency.value = 600; gain.gain.setValueAtTime(0.06, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06); }
+    if (type === "success") { osc.frequency.value = 880; gain.gain.setValueAtTime(0.07, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12); }
+    if (type === "error")   { osc.frequency.value = 220; gain.gain.setValueAtTime(0.07, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15); }
+    osc.start(); osc.stop(ctx.currentTime + 0.2);
+    setTimeout(() => ctx.close(), 300);
+  } catch {}
+}
 
 function dbToReport(r: Record<string, unknown>): Report {
   return { id: r.id as string, driver: r.driver as string, plate: r.plate as string, vehicleType: r.vehicle_type as string, damageType: r.damage_type as string, description: r.description as string, date: r.date as string, photo: r.photo as string | null, hasPhoto: r.has_photo as boolean };
@@ -304,6 +332,129 @@ function ChatPanel({ onClose, userName }: { onClose: () => void; userName: strin
   );
 }
 
+// ─── Feedback Panel ────────────────────────────────────────────────────────────
+function FeedbackPanel({ onClose, userName }: { onClose: () => void; userName: string }) {
+  const [stars, setStars] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [text, setText] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function send() {
+    if (stars === 0 || sending) return;
+    playClick("success");
+    setSending(true);
+    try { await insertFeedback(stars, text.trim(), anonymous, userName); setSent(true); }
+    catch { playClick("error"); alert("Errore nell'invio. Riprova."); }
+    setSending(false);
+  }
+
+  const starLabels = ["","Pessima","Scarsa","Nella media","Buona","Eccellente"];
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#000000cc", zIndex:998, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ background:BG, border:`1px solid ${BORDER}`, borderTop:`3px solid ${ORANGE}`, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:740, padding:"24px 20px 32px", boxShadow:"0 -8px 40px #00000088" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+          <div>
+            <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:20, letterSpacing:2, color:"#e8f4ff" }}>💡 FEEDBACK</div>
+            <div style={{ fontSize:11, color:"#3b6fa0", marginTop:2 }}>Aiutaci a migliorare l'app</div>
+          </div>
+          <button onClick={()=>{ playClick("soft"); onClose(); }} style={{ background:"none", border:"none", color:"#3b6fa0", fontSize:22, cursor:"pointer" }}>✕</button>
+        </div>
+        {sent ? (
+          <div style={{ textAlign:"center", padding:"30px 0" }}>
+            <div style={{ fontSize:52, marginBottom:12 }}>🎉</div>
+            <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:20, color:GREEN, letterSpacing:2, marginBottom:8 }}>GRAZIE!</div>
+            <div style={{ fontSize:13, color:"#3b6fa0", marginBottom:20 }}>Il tuo feedback è stato inviato.</div>
+            <button onClick={()=>{ playClick("soft"); onClose(); }} style={{ padding:"10px 28px", background:ORANGE, color:"#fff", border:"none", borderRadius:8, fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, fontSize:14, letterSpacing:1.5, cursor:"pointer" }}>Chiudi</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom:20, textAlign:"center" }}>
+              <div style={{ fontSize:11, color:"#3b6fa0", letterSpacing:1.5, fontWeight:700, marginBottom:12 }}>COME VALUTI L'APP?</div>
+              <div style={{ display:"flex", justifyContent:"center", gap:8, marginBottom:8 }}>
+                {[1,2,3,4,5].map(s => (
+                  <span key={s} onMouseEnter={()=>setHovered(s)} onMouseLeave={()=>setHovered(0)}
+                    onClick={()=>{ playClick("soft"); setStars(s); }}
+                    style={{ fontSize:38, cursor:"pointer", transition:"transform .1s", transform:(hovered||stars)>=s?"scale(1.2)":"scale(1)", filter:(hovered||stars)>=s?"none":"grayscale(1) opacity(0.3)" }}>⭐</span>
+                ))}
+              </div>
+              {(hovered||stars)>0 && <div style={{ fontSize:13, color:ORANGE, fontWeight:700, letterSpacing:1 }}>{starLabels[hovered||stars]}</div>}
+            </div>
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:11, color:"#3b6fa0", letterSpacing:1.5, fontWeight:700, marginBottom:8 }}>COSA MIGLIORERESTI? (opzionale)</div>
+              <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Es. Vorrei poter filtrare per data…" rows={3}
+                style={{ width:"100%", background:"#0a1628", color:"#cce0f5", border:`1px solid ${BORDER}`, borderRadius:8, padding:"11px 13px", fontSize:13, lineHeight:1.6, resize:"none", fontFamily:"inherit" }}/>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+              <div onClick={()=>{ playClick("soft"); setAnonymous(a=>!a); }}
+                style={{ width:40, height:22, borderRadius:11, background:anonymous?BLUE_LT:BORDER, cursor:"pointer", position:"relative", transition:"background .2s", flexShrink:0 }}>
+                <div style={{ position:"absolute", top:3, left:anonymous?20:3, width:16, height:16, borderRadius:"50%", background:"#fff", transition:"left .2s" }}/>
+              </div>
+              <span style={{ fontSize:12, color:"#3b6fa0" }}>Invia <span style={{ color:anonymous?BLUE_LT:"#3b6fa0", fontWeight:700 }}>{anonymous?"in modo anonimo":"con il mio nome"}</span></span>
+            </div>
+            <button onClick={send} disabled={stars===0||sending}
+              style={{ width:"100%", padding:"13px", borderRadius:8, background:stars===0?"#1a2a3a":ORANGE, color:"#fff", border:"none", cursor:stars===0?"default":"pointer", fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, fontSize:15, letterSpacing:1.5, transition:"background .2s" }}>
+              {sending?"Invio…":stars===0?"Seleziona una valutazione":"📤 INVIA FEEDBACK"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Feedback Admin Tab ────────────────────────────────────────────────────────
+function FeedbackAdminTab() {
+  const [items, setItems] = useState<{id:string;stars:number;text:string;author:string;created_at:string}[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { getFeedback().then(d=>{setItems(d);setLoading(false);}).catch(()=>setLoading(false)); }, []);
+  const avg = items.length ? (items.reduce((a,b)=>a+b.stars,0)/items.length).toFixed(1) : "—";
+  return (
+    <div>
+      {loading ? <div style={{ textAlign:"center", padding:40, color:"#3b6fa0" }}>Caricamento…</div>
+      : items.length===0 ? (
+        <div style={{ textAlign:"center", padding:50 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>💡</div>
+          <div style={{ fontSize:15, color:"#1e3a5f", fontFamily:"Barlow Condensed, sans-serif", fontWeight:800 }}>NESSUN FEEDBACK ANCORA</div>
+        </div>
+      ) : (
+        <>
+          <div style={{ background:CARD, borderRadius:12, padding:"16px 20px", border:`1px solid ${BORDER}`, borderTop:`3px solid #f59e0b`, marginBottom:16, display:"flex", alignItems:"center", gap:16 }}>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:40, color:"#f59e0b", lineHeight:1 }}>{avg}</div>
+              <div style={{ fontSize:11, color:"#3b6fa0", marginTop:2 }}>su {items.length} feedback</div>
+            </div>
+            <div style={{ flex:1 }}>
+              {[5,4,3,2,1].map(s=>{ const c=items.filter(i=>i.stars===s).length; const p=items.length?(c/items.length*100):0; return (
+                <div key={s} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                  <span style={{ fontSize:11, color:"#3b6fa0", width:12 }}>{s}</span>
+                  <span style={{ fontSize:12 }}>⭐</span>
+                  <div style={{ flex:1, height:6, background:BORDER, borderRadius:3, overflow:"hidden" }}>
+                    <div style={{ width:`${p}%`, height:"100%", background:"#f59e0b", borderRadius:3 }}/>
+                  </div>
+                  <span style={{ fontSize:11, color:"#3b6fa0", width:16 }}>{c}</span>
+                </div>
+              );})}
+            </div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {items.map(f=>(
+              <div key={f.id} style={{ background:CARD, border:`1px solid ${BORDER}`, borderRadius:10, padding:"13px 15px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:f.text?6:0 }}>
+                  <span style={{ fontSize:16 }}>{"⭐".repeat(f.stars)}</span>
+                  <span style={{ fontSize:11, color:"#3b6fa0", marginLeft:"auto" }}>👤 {f.author} · {formatDate(f.created_at)}</span>
+                </div>
+                {f.text && <div style={{ fontSize:13, color:"#a0c4e8", lineHeight:1.6, fontStyle:"italic" }}>"{f.text}"</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Nome utente modal ─────────────────────────────────────────────────────────
 function NameModal({ onConfirm }: { onConfirm: (name: string) => void }) {
   const [name, setName] = useState("");
@@ -355,6 +506,7 @@ export default function App() {
   const [loadErr, setLoadErr]   = useState(false);
   // Chat & notifiche
   const [showChat, setShowChat] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [userName, setUserName] = useState(() => localStorage.getItem("cp_username") || "");
   const [showNameModal, setShowNameModal] = useState(false);
   const [unreadChat, setUnreadChat] = useState(0);
@@ -591,7 +743,8 @@ export default function App() {
       `}</style>
 
       {showNameModal && <NameModal onConfirm={handleSetName} />}
-      {showChat && <ChatPanel onClose={()=>{ setShowChat(false); setUnreadChat(0); }} userName={userName} />}
+      {showChat && <ChatPanel onClose={()=>{ playClick("soft"); setShowChat(false); setUnreadChat(0); }} userName={userName} />}
+      {showFeedback && <FeedbackPanel onClose={()=>setShowFeedback(false)} userName={userName} />}
 
       {/* MODALS */}
       <Modal show={modal?.type==="deleteFuoriUso"} onClose={()=>setModal(null)} borderColor={GREEN} icon="✅" title="MEZZO RIENTRATO" titleColor={GREEN}>
@@ -653,17 +806,21 @@ export default function App() {
         </div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
           {/* Chat button */}
-          <button onClick={()=>{ setShowChat(true); setUnreadChat(0); }}
+          <button onClick={()=>{ playClick("soft"); setShowChat(true); setUnreadChat(0); }}
             style={{ position:"relative", background:"transparent", color:BLUE_LT, border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", cursor:"pointer", fontSize:16 }}>
             💬
             {unreadChat > 0 && (
               <span style={{ position:"absolute", top:-6, right:-6, background:RED, color:"#fff", borderRadius:"50%", width:18, height:18, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, animation:"pulse 1s ease-in-out infinite" }}>{unreadChat}</span>
             )}
           </button>
+          <button onClick={()=>{ playClick("soft"); setShowFeedback(true); }}
+            style={{ background:"transparent", color:ORANGE, border:`1px solid ${ORANGE}44`, borderRadius:7, padding:"7px 11px", cursor:"pointer", fontSize:16 }} title="Invia feedback">
+            💡
+          </button>
           {view === "dashboard" && <>
-            <button onClick={loadData} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:15 }} title="Aggiorna">🔄</button>
-            <button onClick={()=>setView("adminLogin")} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:11, letterSpacing:1 }}>🔐 Admin</button>
-            <button onClick={()=>setView("new")} style={{ ...btn, background:ORANGE, color:"#fff", border:"none", borderRadius:7, padding:"8px 14px", fontSize:12, letterSpacing:1.5, boxShadow:`0 4px 14px ${ORANGE}44` }}>+ Nuova</button>
+            <button onClick={()=>{ playClick("soft"); loadData(); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:15 }} title="Aggiorna">🔄</button>
+            <button onClick={()=>{ playClick("soft"); setView("adminLogin"); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:11, letterSpacing:1 }}>🔐 Admin</button>
+            <button onClick={()=>{ playClick("soft"); setView("new"); }} style={{ ...btn, background:ORANGE, color:"#fff", border:"none", borderRadius:7, padding:"8px 14px", fontSize:12, letterSpacing:1.5, boxShadow:`0 4px 14px ${ORANGE}44` }}>+ Nuova</button>
           </>}
           {view === "admin" && (
             <button onClick={()=>goHome(null)} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:11 }}>Esci da Admin</button>
@@ -946,8 +1103,8 @@ export default function App() {
                 )}
               </div>
               <div style={{ display:"flex", gap:12, paddingTop:4 }}>
-                <button onClick={()=>goHome(null)} style={{ ...btn, flex:1, padding:"12px", borderRadius:8, background:"transparent", color:"#3b6fa0", border:`2px solid ${BORDER}`, fontSize:14, letterSpacing:1.5, textTransform:"uppercase" }}>Annulla</button>
-                <button onClick={handleSave} disabled={busy}
+                <button onClick={()=>{ playClick("soft"); goHome(null); }} style={{ ...btn, flex:1, padding:"12px", borderRadius:8, background:"transparent", color:"#3b6fa0", border:`2px solid ${BORDER}`, fontSize:14, letterSpacing:1.5, textTransform:"uppercase" }}>Annulla</button>
+                <button onClick={()=>{ playClick("success"); handleSave(); }} disabled={busy}
                   style={{ ...btn, flex:2, padding:"12px", borderRadius:8, background:busy?"#555":ORANGE, color:"#fff", border:"none", cursor:busy?"default":"pointer", fontSize:14, letterSpacing:1.5, textTransform:"uppercase", transition:"background .15s" }}>
                   {busy ? "Salvataggio…" : "✓ Salva Segnalazione"}
                 </button>
@@ -1018,7 +1175,7 @@ export default function App() {
               ))}
             </div>
             <div style={{ display:"flex", marginBottom:16, border:`1px solid ${BORDER}`, borderRadius:10, overflow:"hidden" }}>
-              {[{key:"active",label:"⚠ ATTIVI",color:ORANGE,count:reports.length},{key:"fuoriuso",label:"🔧 FUORI USO",color:YELLOW,count:fuoriUso.length},{key:"resolved",label:"✅ RISOLTI",color:GREEN,count:resolved.length}].map(t=>(
+              {[{key:"active",label:"⚠ ATTIVI",color:ORANGE,count:reports.length},{key:"fuoriuso",label:"🔧 FUORI USO",color:YELLOW,count:fuoriUso.length},{key:"resolved",label:"✅ RISOLTI",color:GREEN,count:resolved.length},{key:"feedback",label:"💡 FEEDBACK",color:BLUE_LT,count:0}].map(t=>(
                 <button key={t.key} onClick={()=>setAdminTab(t.key)}
                   style={{ ...btn, flex:1, padding:"11px 4px", border:"none", fontSize:10, letterSpacing:0.8, transition:"all .15s",
                     background:adminTab===t.key?t.color+"22":"transparent", color:adminTab===t.key?t.color:"#2a4a6e",
@@ -1171,6 +1328,8 @@ export default function App() {
                 ))}
               </div>
             ))}
+
+            {adminTab==="feedback" && <FeedbackAdminTab />}
           </div>
         )}
 

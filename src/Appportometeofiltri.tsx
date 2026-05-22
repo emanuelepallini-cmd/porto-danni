@@ -82,6 +82,45 @@ function sendNotif(title: string, body: string) {
   try { new Notification(title, { body, icon: "https://em-content.zobj.net/source/apple/391/anchor_2693.png" }); } catch {}
 }
 
+// ─── OpenWeatherMap config ─────────────────────────────────────────────────────
+const OWM_KEY  = "183c56fa8c7c89d75d4d5a5d01bd6c0e";
+const OWM_LAT  = 42.9196;
+const OWM_LON  = 10.5317;
+
+interface WeatherData {
+  temp: number; feels: number; humidity: number;
+  description: string; icon: string;
+  windSpeed: number; windDeg: number;
+  city: string; sunrise: number; sunset: number;
+}
+async function fetchWeather(): Promise<WeatherData> {
+  const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${OWM_LAT}&lon=${OWM_LON}&appid=${OWM_KEY}&units=metric&lang=it`);
+  if (!r.ok) throw new Error("meteo non disponibile");
+  const d = await r.json();
+  return {
+    temp: Math.round(d.main.temp),
+    feels: Math.round(d.main.feels_like),
+    humidity: d.main.humidity,
+    description: d.weather[0].description,
+    icon: d.weather[0].icon,
+    windSpeed: Math.round(d.wind.speed * 3.6),
+    windDeg: d.wind.deg || 0,
+    city: d.name,
+    sunrise: d.sys.sunrise,
+    sunset: d.sys.sunset,
+  };
+}
+function windDir(deg: number) {
+  const dirs = ["N","NE","E","SE","S","SW","O","NO"];
+  return dirs[Math.round(deg / 45) % 8];
+}
+function windAlert(speed: number) {
+  if (speed >= 60) return { label:"PERICOLO", color:"#ef4444" };
+  if (speed >= 40) return { label:"ATTENZIONE", color:"#f97316" };
+  if (speed >= 25) return { label:"MODERATO", color:"#eab308" };
+  return { label:"REGOLARE", color:"#22c55e" };
+}
+
 // ─── Costanti ──────────────────────────────────────────────────────────────────
 const VEHICLE_TYPES  = ["Gru","Motopala","Muletto","Escavatore","Macchina","Carroponte","Camion","Rimorchio","Attrezzatura di Sollevamento","Tramoggia"];
 const DAMAGE_TYPES   = ["Carrozzeria","Impianto Idraulico","Motore / Meccanica","Impianto Elettrico","Pneumatici / Cingoli","Struttura / Telaio","Braccio / Benna","Cabina / Interno","Sistema di Sollevamento","Altro"];
@@ -300,6 +339,7 @@ export default function App() {
   const [adminTab, setAdminTab] = useState("active");
   const [dashTab, setDashTab]   = useState("active");
   const [filterType, setFilterType] = useState("Tutti");
+  const [filterDate, setFilterDate] = useState({ from:"", to:"" });
   const [search, setSearch]     = useState("");
   const [fuoriUso, setFuoriUso] = useState<FuoriUso[]>([]);
   const [fuForm, setFuForm]     = useState({ plate:"", vehicleType:"", reason:"", dateExpectedOut:"", note:"" });
@@ -320,6 +360,18 @@ export default function App() {
   const [unreadChat, setUnreadChat] = useState(0);
   const [lastMsgCount, setLastMsgCount] = useState(0);
   const [notifEnabled, setNotifEnabled] = useState(false);
+
+  const [weather, setWeather]   = useState<WeatherData | null>(null);
+  const [wxLoading, setWxLoading] = useState(false);
+  const [wxError, setWxError]   = useState(false);
+
+  const loadWeather = useCallback(async () => {
+    setWxLoading(true); setWxError(false);
+    try { setWeather(await fetchWeather()); } catch { setWxError(true); }
+    setWxLoading(false);
+  }, []);
+
+  useEffect(() => { loadWeather(); const t = setInterval(loadWeather, 600000); return () => clearInterval(t); }, [loadWeather]);
 
   const fileRef  = useRef<HTMLInputElement>(null);
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -506,9 +558,14 @@ export default function App() {
   const criticalCount = reports.filter(r => CRITICAL.includes(r.damageType)).length;
   const todayCount    = reports.filter(r => new Date(r.date).toDateString() === new Date().toDateString()).length;
   const searchLower   = search.toLowerCase().trim();
-  const filtered      = reports
+  const fromDate = filterDate.from ? new Date(filterDate.from) : null;
+  const toDate   = filterDate.to   ? new Date(filterDate.to + "T23:59:59") : null;
+  const filtered = reports
     .filter(r => filterType === "Tutti" || r.vehicleType === filterType)
-    .filter(r => !searchLower || [r.plate,r.driver,r.description,r.vehicleType,r.damageType].some(f=>f.toLowerCase().includes(searchLower)));
+    .filter(r => !searchLower || [r.plate,r.driver,r.description,r.vehicleType,r.damageType].some(f=>f.toLowerCase().includes(searchLower)))
+    .filter(r => !fromDate || new Date(r.date) >= fromDate)
+    .filter(r => !toDate   || new Date(r.date) <= toDate);
+  const hasFilters = filterType !== "Tutti" || filterDate.from || filterDate.to || search;
   const isAdminView   = ["admin","adminDetail","adminLogin"].includes(view) || (view==="resolvedDetail" && isAdmin);
   const btn: React.CSSProperties = { fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, cursor:"pointer" };
 
@@ -630,6 +687,34 @@ export default function App() {
         </div>
       )}
 
+      {/* BARRA METEO FISSA */}
+      {weather && (() => {
+        const wa = windAlert(weather.windSpeed);
+        return (
+          <div style={{ background: weather.windSpeed>=40 ? wa.color+"18" : "#0a1628", borderBottom:`1px solid ${weather.windSpeed>=40 ? wa.color+"55" : BORDER}`, padding:"8px 20px", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+            <img src={`https://openweathermap.org/img/wn/${weather.icon}.png`} alt="" style={{ width:32, height:32, flexShrink:0 }}/>
+            <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+              <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:18, color:"#e8f4ff" }}>{weather.temp}°C</span>
+              <span style={{ fontSize:11, color:"#3b6fa0", textTransform:"capitalize" }}>{weather.description}</span>
+            </div>
+            <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+            <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+              <span style={{ fontSize:11, color:"#3b6fa0" }}>💨</span>
+              <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:15, color:wa.color }}>{weather.windSpeed} km/h</span>
+              <span style={{ fontSize:10, color:"#3b6fa0" }}>{windDir(weather.windDeg)}</span>
+              <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:3, background:wa.color+"22", color:wa.color, border:`1px solid ${wa.color}44`, letterSpacing:1 }}>{wa.label}</span>
+            </div>
+            {weather.windSpeed>=40 && (
+              <>
+                <div style={{ width:1, height:20, background:BORDER, flexShrink:0 }}/>
+                <span style={{ fontSize:11, color:wa.color, fontWeight:700 }}>⚠ Verificare condizioni sollevamento</span>
+              </>
+            )}
+            <div style={{ marginLeft:"auto", fontSize:10, color:"#1e3a5f" }}>📍 Piombino</div>
+          </div>
+        );
+      })()}
+
       <main style={{ maxWidth:740, margin:"0 auto", padding:"20px 14px" }}>
 
         {/* ════════ DASHBOARD ════════ */}
@@ -734,10 +819,26 @@ export default function App() {
                 </div>
               )}
               {reports.length > 0 && (
-                <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
-                  {["Tutti",...VEHICLE_TYPES].filter(t=>t==="Tutti"||reports.some(r=>r.vehicleType===t)).map(t=>(
-                    <button key={t} onClick={()=>setFilterType(t)} style={{ ...btn, padding:"4px 10px", borderRadius:5, fontSize:10, letterSpacing:1, textTransform:"uppercase", background:filterType===t?BLUE:"transparent", color:filterType===t?"#fff":"#3b6fa0", border:`1px solid ${filterType===t?BLUE:BORDER}` }}>{t}</button>
-                  ))}
+                <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+                  {/* Filtro per mezzo */}
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {["Tutti",...VEHICLE_TYPES].filter(t=>t==="Tutti"||reports.some(r=>r.vehicleType===t)).map(t=>(
+                      <button key={t} onClick={()=>setFilterType(t)} style={{ ...btn, padding:"4px 10px", borderRadius:5, fontSize:10, letterSpacing:1, textTransform:"uppercase", background:filterType===t?BLUE:"transparent", color:filterType===t?"#fff":"#3b6fa0", border:`1px solid ${filterType===t?BLUE:BORDER}` }}>{t}</button>
+                    ))}
+                  </div>
+                  {/* Filtro per data */}
+                  <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                    <span style={{ fontSize:10, color:"#3b6fa0", letterSpacing:1.5, fontWeight:700, flexShrink:0 }}>📅 DAL</span>
+                    <input type="date" value={filterDate.from} onChange={e=>setFilterDate(f=>({...f,from:e.target.value}))}
+                      style={{ background:"#0a1628", color:"#e2eaf5", border:`1px solid ${filterDate.from?BLUE_LT:BORDER}`, borderRadius:7, padding:"6px 10px", fontSize:12, fontFamily:"inherit" }}/>
+                    <span style={{ fontSize:10, color:"#3b6fa0", letterSpacing:1.5, fontWeight:700, flexShrink:0 }}>AL</span>
+                    <input type="date" value={filterDate.to} onChange={e=>setFilterDate(f=>({...f,to:e.target.value}))}
+                      style={{ background:"#0a1628", color:"#e2eaf5", border:`1px solid ${filterDate.to?BLUE_LT:BORDER}`, borderRadius:7, padding:"6px 10px", fontSize:12, fontFamily:"inherit" }}/>
+                    {hasFilters && (
+                      <button onClick={()=>{ setFilterType("Tutti"); setFilterDate({from:"",to:""}); setSearch(""); }}
+                        style={{ ...btn, background:RED+"22", border:`1px solid ${RED}44`, color:RED, borderRadius:6, padding:"5px 10px", fontSize:10, letterSpacing:1 }}>✕ RESET</button>
+                    )}
+                  </div>
                 </div>
               )}
               {booting ? (

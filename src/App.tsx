@@ -87,6 +87,31 @@ function playClick(type: "soft"|"success"|"error" = "soft") {
   } catch {}
 }
 
+function playNewReportSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as {webkitAudioContext: typeof AudioContext}).webkitAudioContext)();
+    // Suono "ding-dong" tipo notifica mail
+    const notes = [
+      { freq: 988, start: 0,    dur: 0.15 }, // SI
+      { freq: 1319, start: 0.12, dur: 0.25 }, // MI alto
+    ];
+    notes.forEach(n => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = n.freq;
+      osc.connect(gain); gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0, ctx.currentTime + n.start);
+      gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + n.start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + n.start + n.dur);
+      osc.start(ctx.currentTime + n.start);
+      osc.stop(ctx.currentTime + n.start + n.dur);
+    });
+    setTimeout(() => ctx.close(), 600);
+    if (navigator.vibrate) navigator.vibrate([40, 80, 40]);
+  } catch {}
+}
+
 function dbToReport(r: Record<string, unknown>): Report {
   return { id: r.id as string, driver: r.driver as string, plate: r.plate as string, vehicleType: r.vehicle_type as string, damageType: r.damage_type as string, description: r.description as string, date: r.date as string, photo: r.photo as string | null, hasPhoto: r.has_photo as boolean };
 }
@@ -692,6 +717,7 @@ export default function App() {
       if (prevReportsLen.current > 0 && newReps.length > prevReportsLen.current) {
         const newest = newReps[0];
         sendNotif("🚨 Nuova Segnalazione", `${newest.plate} — ${newest.vehicleType} — ${newest.damageType}`);
+        playNewReportSound();
       }
       prevReportsLen.current = newReps.length;
       setReports(newReps);
@@ -742,6 +768,7 @@ export default function App() {
       const rep: Report = { id, driver:form.driver.trim(), plate:form.plate.trim().toUpperCase(), vehicleType:form.vehicleType, damageType:form.damageType, description:form.description.trim(), date:new Date().toISOString(), photo:form.photo, hasPhoto:!!form.photo };
       await insertReport(rep);
       await insertMessage("🤖 Sistema", `🚨 Nuova segnalazione: ${rep.plate} (${rep.vehicleType}) — ${rep.damageType} — segnalato da ${rep.driver}`);
+      playNewReportSound();
       setReports(prev => [rep, ...prev]);
       prevReportsLen.current = reports.length + 1;
       setForm({ driver:"", plate:"", vehicleType:"", damageType:"", description:"", photo:null });

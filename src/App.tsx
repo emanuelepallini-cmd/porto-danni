@@ -886,11 +886,17 @@ export default function App() {
           .meteo-row{flex-wrap:wrap;gap:6px!important;padding:8px 12px!important}
           .meteo-sep{display:none!important}
           .meteo-forecast{padding:6px 12px!important;gap:10px!important;overflow-x:auto}
-          .header-title{font-size:13px!important}
+          .header-title{font-size:13px!important;letter-spacing:1px!important}
           .header-sub{display:none!important}
+          .header-text{display:none!important}
+          .header-logo{width:34px!important;height:34px!important;font-size:16px!important}
+          .hide-mobile{display:none!important}
           .stat-card{padding:10px 8px!important}
           .stat-val{font-size:22px!important}
           .main-pad{padding:14px 10px!important}
+        }
+        @media(max-width:380px){
+          .header-logo{display:none!important}
         }
       `}</style>
 
@@ -941,41 +947,41 @@ export default function App() {
       </Modal>
 
       {/* HEADER */}
-      <header style={{ background:"linear-gradient(135deg,#060d1a,#0a1628)", borderBottom:`3px solid ${ORANGE}`, padding:"0 16px", height:68, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 4px 24px #00000088" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+      <header style={{ background:"linear-gradient(135deg,#060d1a,#0a1628)", borderBottom:`3px solid ${ORANGE}`, padding:"0 12px", height:68, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, boxShadow:"0 4px 24px #00000088", gap:8 }}>
+        <div className="header-left" style={{ display:"flex", alignItems:"center", gap:10, minWidth:0, flexShrink:1 }}>
           {view !== "dashboard" && (
-            <button className="back-btn" onClick={()=>goHome(null)} style={{ background:"none", border:"none", color:"#3b6fa0", fontSize:24, cursor:"pointer", lineHeight:1, transition:"color .15s", padding:"4px 8px" }}>←</button>
+            <button className="back-btn" onClick={()=>{ playClick("soft"); goHome(null); }} style={{ background:"none", border:"none", color:"#3b6fa0", fontSize:24, cursor:"pointer", lineHeight:1, transition:"color .15s", padding:"4px 8px", flexShrink:0 }}>←</button>
           )}
-          <div style={{ width:40, height:40, borderRadius:10, background:`linear-gradient(135deg,${BLUE},${BLUE_LT})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>
+          <div className="header-logo" style={{ width:40, height:40, borderRadius:10, background:`linear-gradient(135deg,${BLUE},${BLUE_LT})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
             <span className="wave">⚓</span>
           </div>
-          <div>
-            <div style={{ fontSize:16, fontWeight:900, letterSpacing:2, fontFamily:"Barlow Condensed, sans-serif", color:isAdminView?"#fbbf24":"#e8f4ff", lineHeight:1 }}>
-              {isAdminView ? "🔐 PANNELLO ADMIN" : "SEGNALAZIONE DANNI"}
+          <div className="header-text" style={{ minWidth:0, overflow:"hidden" }}>
+            <div className="header-title" style={{ fontSize:16, fontWeight:900, letterSpacing:2, fontFamily:"Barlow Condensed, sans-serif", color:isAdminView?"#fbbf24":"#e8f4ff", lineHeight:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+              {isAdminView ? "🔐 ADMIN" : "SEGNALAZIONE"}
             </div>
-            <div style={{ fontSize:9, color:ORANGE, letterSpacing:2.5, fontWeight:700, marginTop:1 }}>COMPAGNIA PORTUALI{userName?" • "+userName:""}</div>
+            <div className="header-sub" style={{ fontSize:9, color:ORANGE, letterSpacing:2.5, fontWeight:700, marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>COMPAGNIA PORTUALI{userName?" • "+userName:""}</div>
           </div>
         </div>
-        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+        <div style={{ display:"flex", gap:5, alignItems:"center", flexShrink:0 }}>
           {/* Chat button */}
           <button onClick={()=>{ playClick("soft"); setShowChat(true); setUnreadChat(0); }}
-            style={{ position:"relative", background:"transparent", color:BLUE_LT, border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", cursor:"pointer", fontSize:16 }}>
+            style={{ position:"relative", background:"transparent", color:BLUE_LT, border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}>
             💬
             {unreadChat > 0 && (
               <span style={{ position:"absolute", top:-6, right:-6, background:RED, color:"#fff", borderRadius:"50%", width:18, height:18, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, animation:"pulse 1s ease-in-out infinite" }}>{unreadChat}</span>
             )}
           </button>
           <button onClick={()=>{ playClick("soft"); setShowFeedback(true); }}
-            style={{ background:"transparent", color:ORANGE, border:`1px solid ${ORANGE}44`, borderRadius:7, padding:"7px 11px", cursor:"pointer", fontSize:16 }} title="Invia feedback">
+            style={{ background:"transparent", color:ORANGE, border:`1px solid ${ORANGE}44`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }} title="Invia feedback">
             💡
           </button>
           {view === "dashboard" && <>
-            <button onClick={()=>{ playClick("soft"); loadData(); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:15 }} title="Aggiorna">🔄</button>
-            <button onClick={()=>{ playClick("soft"); setView("adminLogin"); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:11, letterSpacing:1 }}>🔐 Admin</button>
-            <button onClick={()=>{ playClick("soft"); setView("new"); }} style={{ ...btn, background:ORANGE, color:"#fff", border:"none", borderRadius:7, padding:"8px 14px", fontSize:12, letterSpacing:1.5, boxShadow:`0 4px 14px ${ORANGE}44` }}>+ Nuova</button>
+            <button className="hide-mobile" onClick={()=>{ playClick("soft"); loadData(); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 9px", fontSize:14 }} title="Aggiorna">🔄</button>
+            <button onClick={()=>{ playClick("soft"); setView("adminLogin"); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 9px", fontSize:14 }} title="Admin">🔐</button>
+            <button onClick={()=>{ playClick("soft"); setView("new"); }} style={{ ...btn, background:ORANGE, color:"#fff", border:"none", borderRadius:7, padding:"8px 12px", fontSize:12, letterSpacing:1, boxShadow:`0 4px 14px ${ORANGE}44`, whiteSpace:"nowrap" }}>+ Nuova</button>
           </>}
           {view === "admin" && (
-            <button onClick={()=>goHome(null)} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:11 }}>Esci da Admin</button>
+            <button onClick={()=>{ playClick("soft"); goHome(null); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 11px", fontSize:11 }}>Esci</button>
           )}
         </div>
       </header>

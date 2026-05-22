@@ -332,6 +332,119 @@ function ChatPanel({ onClose, userName }: { onClose: () => void; userName: strin
   );
 }
 
+// ─── Stats Tab ─────────────────────────────────────────────────────────────────
+function StatsTab({ reports, resolved, fuoriUso }: { reports: Report[]; resolved: Report[]; fuoriUso: FuoriUso[] }) {
+  const PURPLE = "#a855f7";
+  const all = [...reports, ...resolved];
+
+  // Guasti per tipo mezzo
+  const byVehicle = VEHICLE_TYPES.map(v => ({
+    label: v, count: all.filter(r => r.vehicleType === v).length
+  })).filter(x => x.count > 0).sort((a,b) => b.count - a.count);
+
+  // Guasti per tipo danno
+  const byDamage = DAMAGE_TYPES.map(d => ({
+    label: d, count: all.filter(r => r.damageType === d).length,
+    color: CRITICAL.includes(d) ? RED : MEDIUM.includes(d) ? ORANGE : BLUE_LT
+  })).filter(x => x.count > 0).sort((a,b) => b.count - a.count);
+
+  // Guasti ultimi 7 giorni
+  const last7 = Array.from({length:7}, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6-i));
+    const label = d.toLocaleDateString("it-IT",{weekday:"short"});
+    const count = all.filter(r => new Date(r.date).toDateString() === d.toDateString()).length;
+    return { label, count };
+  });
+  const maxDay = Math.max(...last7.map(d=>d.count), 1);
+
+  // Tasso risoluzione
+  const totale = all.length;
+  const risolti = resolved.length;
+  const pctRisolti = totale ? Math.round(risolti/totale*100) : 0;
+
+  const maxV = Math.max(...byVehicle.map(v=>v.count), 1);
+  const maxD = Math.max(...byDamage.map(d=>d.count), 1);
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+      {/* KPI row */}
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+        {[
+          { label:"Totale segnalazioni", value:totale, color:PURPLE, icon:"📋" },
+          { label:"Tasso risoluzione", value:`${pctRisolti}%`, color:GREEN, icon:"✅" },
+          { label:"Mezzi fuori uso", value:fuoriUso.length, color:YELLOW, icon:"🔧" },
+          { label:"Critici attivi", value:reports.filter(r=>CRITICAL.includes(r.damageType)).length, color:RED, icon:"🚨" },
+        ].map(k => (
+          <div key={k.label} style={{ flex:1, minWidth:120, background:CARD, border:`1px solid ${k.color}33`, borderTop:`3px solid ${k.color}`, borderRadius:10, padding:"12px" }}>
+            <div style={{ fontSize:9, color:"#3b6fa0", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{k.icon} {k.label.toUpperCase()}</div>
+            <div style={{ fontSize:26, fontWeight:900, color:k.color, fontFamily:"Barlow Condensed, sans-serif" }}>{k.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Grafico ultimi 7 giorni */}
+      <div style={{ background:CARD, borderRadius:12, padding:"16px", border:`1px solid ${BORDER}`, borderTop:`3px solid ${PURPLE}` }}>
+        <div style={{ fontSize:10, color:"#3b6fa0", letterSpacing:2, fontWeight:700, marginBottom:14 }}>📅 GUASTI ULTIMI 7 GIORNI</div>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:80 }}>
+          {last7.map((d,i) => (
+            <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+              <div style={{ fontSize:10, color:PURPLE, fontWeight:700 }}>{d.count > 0 ? d.count : ""}</div>
+              <div style={{ width:"100%", background:d.count>0?PURPLE:BORDER, borderRadius:"4px 4px 0 0", height:`${Math.max(4, d.count/maxDay*60)}px`, transition:"height .4s", opacity:d.count>0?1:0.3 }}/>
+              <div style={{ fontSize:9, color:"#3b6fa0", textTransform:"capitalize" }}>{d.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mezzi più problematici */}
+      {byVehicle.length > 0 && (
+        <div style={{ background:CARD, borderRadius:12, padding:"16px", border:`1px solid ${BORDER}`, borderTop:`3px solid ${ORANGE}` }}>
+          <div style={{ fontSize:10, color:"#3b6fa0", letterSpacing:2, fontWeight:700, marginBottom:14 }}>🏗 MEZZI PIÙ PROBLEMATICI</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {byVehicle.slice(0,6).map((v,i) => (
+              <div key={v.label} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ fontSize:11, color:i===0?ORANGE:"#3b6fa0", fontWeight:700, width:16 }}>{i+1}</div>
+                <div style={{ fontSize:12, color:"#a0c4e8", width:160, flexShrink:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{v.label}</div>
+                <div style={{ flex:1, height:8, background:BORDER, borderRadius:4, overflow:"hidden" }}>
+                  <div style={{ width:`${v.count/maxV*100}%`, height:"100%", background:i===0?ORANGE:BLUE_LT, borderRadius:4, transition:"width .5s" }}/>
+                </div>
+                <div style={{ fontSize:12, fontWeight:800, color:i===0?ORANGE:BLUE_LT, width:20, textAlign:"right" }}>{v.count}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tipi di danno */}
+      {byDamage.length > 0 && (
+        <div style={{ background:CARD, borderRadius:12, padding:"16px", border:`1px solid ${BORDER}`, borderTop:`3px solid ${RED}` }}>
+          <div style={{ fontSize:10, color:"#3b6fa0", letterSpacing:2, fontWeight:700, marginBottom:14 }}>🔧 TIPI DI DANNO PIÙ FREQUENTI</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {byDamage.slice(0,6).map(d => (
+              <div key={d.label} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ fontSize:12, color:"#a0c4e8", width:180, flexShrink:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{d.label}</div>
+                <div style={{ flex:1, height:8, background:BORDER, borderRadius:4, overflow:"hidden" }}>
+                  <div style={{ width:`${d.count/maxD*100}%`, height:"100%", background:d.color, borderRadius:4, transition:"width .5s" }}/>
+                </div>
+                <div style={{ fontSize:12, fontWeight:800, color:d.color, width:20, textAlign:"right" }}>{d.count}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {totale === 0 && (
+        <div style={{ textAlign:"center", padding:50 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📊</div>
+          <div style={{ fontSize:15, color:"#1e3a5f", fontFamily:"Barlow Condensed, sans-serif", fontWeight:800 }}>NESSUN DATO ANCORA</div>
+          <div style={{ fontSize:12, color:"#1e3a5f", marginTop:8 }}>Le statistiche appariranno dopo le prime segnalazioni.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Feedback Panel ────────────────────────────────────────────────────────────
 function FeedbackPanel({ onClose, userName }: { onClose: () => void; userName: string }) {
   const [stars, setStars] = useState(0);
@@ -1175,7 +1288,7 @@ export default function App() {
               ))}
             </div>
             <div style={{ display:"flex", marginBottom:16, border:`1px solid ${BORDER}`, borderRadius:10, overflow:"hidden" }}>
-              {[{key:"active",label:"⚠ ATTIVI",color:ORANGE,count:reports.length},{key:"fuoriuso",label:"🔧 FUORI USO",color:YELLOW,count:fuoriUso.length},{key:"resolved",label:"✅ RISOLTI",color:GREEN,count:resolved.length},{key:"feedback",label:"💡 FEEDBACK",color:BLUE_LT,count:0}].map(t=>(
+              {[{key:"active",label:"⚠ ATTIVI",color:ORANGE,count:reports.length},{key:"fuoriuso",label:"🔧 FUORI USO",color:YELLOW,count:fuoriUso.length},{key:"resolved",label:"✅ RISOLTI",color:GREEN,count:resolved.length},{key:"stats",label:"📊 STATS",color:"#a855f7",count:0},{key:"feedback",label:"💡 FEEDBACK",color:BLUE_LT,count:0}].map(t=>(
                 <button key={t.key} onClick={()=>setAdminTab(t.key)}
                   style={{ ...btn, flex:1, padding:"11px 4px", border:"none", fontSize:10, letterSpacing:0.8, transition:"all .15s",
                     background:adminTab===t.key?t.color+"22":"transparent", color:adminTab===t.key?t.color:"#2a4a6e",
@@ -1329,6 +1442,7 @@ export default function App() {
               </div>
             ))}
 
+            {adminTab==="stats" && <StatsTab reports={reports} resolved={resolved} fuoriUso={fuoriUso} />}
             {adminTab==="feedback" && <FeedbackAdminTab />}
           </div>
         )}

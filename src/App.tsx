@@ -690,6 +690,11 @@ export default function App() {
   const [resetPwd, setResetPwd]       = useState("");
   const [resetPwdErr, setResetPwdErr] = useState(false);
   const [resetting, setResetting]     = useState(false);
+  const [darkMode, setDarkMode]       = useState<boolean>(() => {
+    const saved = localStorage.getItem("cp_theme");
+    if (saved !== null) return saved === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
 
   const [weather, setWeather]   = useState<WeatherData | null>(null);
   const [wxLoading, setWxLoading] = useState(false);
@@ -756,7 +761,28 @@ export default function App() {
     } catch {}
   }, [showChat, lastMsgCount, userName]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Segui cambio tema di sistema se l'utente non ha impostato preferenza manuale
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => {
+      if (localStorage.getItem("cp_theme") === null) setDarkMode(e.matches);
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  function toggleTheme() {
+    const next = !darkMode;
+    setDarkMode(next);
+    localStorage.setItem("cp_theme", next ? "dark" : "light");
+  }
+
+  // Colori tema
+  const TBG    = darkMode ? "#080f1c" : "#f0f4f8";
+  const TCARD  = darkMode ? "#0d1526" : "#ffffff";
+  const TBORDER = darkMode ? "#162035" : "#d0dce8";
+  const TTEXT  = darkMode ? "#cce0f5" : "#1a2a3a";
+  const TSUB   = darkMode ? "#3b6fa0" : "#6a8faf";
   useEffect(() => { const t = setInterval(loadData, 30000); return () => clearInterval(t); }, [loadData]);
   useEffect(() => { const t = setInterval(checkChat, 15000); return () => clearInterval(t); }, [checkChat]);
 
@@ -902,7 +928,7 @@ export default function App() {
   const btn: React.CSSProperties = { fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, cursor:"pointer" };
 
   return (
-    <div style={{ minHeight:"100vh", background:BG, fontFamily:"'Barlow','Barlow Condensed',sans-serif", color:"#cce0f5" }}>
+    <div style={{ minHeight:"100vh", background:TBG, fontFamily:"'Barlow','Barlow Condensed',sans-serif", color:TTEXT }}>
       <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@500;700;800;900&display=swap" rel="stylesheet" />
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0}
@@ -1008,7 +1034,7 @@ export default function App() {
         <div style={{ display:"flex", gap:5, alignItems:"center", flexShrink:0 }}>
           {/* Chat button */}
           <button onClick={()=>{ playClick("soft"); setShowChat(true); setUnreadChat(0); }}
-            style={{ position:"relative", background:"transparent", color:BLUE_LT, border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}>
+            style={{ position:"relative", background:"transparent", color:BLUE_LT, border:`1px solid ${TBORDER}`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}>
             💬
             {unreadChat > 0 && (
               <span style={{ position:"absolute", top:-6, right:-6, background:RED, color:"#fff", borderRadius:"50%", width:18, height:18, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, animation:"pulse 1s ease-in-out infinite" }}>{unreadChat}</span>
@@ -1017,6 +1043,11 @@ export default function App() {
           <button onClick={()=>{ playClick("soft"); setShowFeedback(true); }}
             style={{ background:"transparent", color:ORANGE, border:`1px solid ${ORANGE}44`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }} title="Invia feedback">
             💡
+          </button>
+          <button onClick={toggleTheme}
+            style={{ background:"transparent", color:darkMode?"#fbbf24":"#3b6fa0", border:`1px solid ${TBORDER}`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}
+            title={darkMode ? "Passa al tema chiaro" : "Passa al tema scuro"}>
+            {darkMode ? "☀️" : "🌙"}
           </button>
           {view === "dashboard" && <>
             <button className="hide-mobile" onClick={()=>{ playClick("soft"); loadData(); }} style={{ ...btn, background:"transparent", color:"#3b6fa0", border:`1px solid ${BORDER}`, borderRadius:7, padding:"7px 9px", fontSize:14 }} title="Aggiorna">🔄</button>

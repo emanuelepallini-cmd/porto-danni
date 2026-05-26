@@ -284,7 +284,7 @@ function InfoCard({ icon, label, value, accent, small, green, extra }: { icon: s
   const top = accent ? ORANGE : green ? GREEN : BLUE+"88";
   const col = accent ? ORANGE : green ? GREEN : "#d0e4f7";
   return (
-    <div style={{ background:TCARD, borderRadius:10, padding:"13px 15px", border:`1px solid var(--border)`, borderTop:`2px solid ${top}` }}>
+    <div style={{ background:"var(--card)", borderRadius:10, padding:"13px 15px", border:`1px solid var(--border)`, borderTop:`2px solid ${top}` }}>
       <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:1.5, fontWeight:700, marginBottom:5 }}>{icon} {label.toUpperCase()}</div>
       <div style={{ fontSize:small?13:17, fontWeight:800, fontFamily:"Barlow Condensed, sans-serif", color:col, letterSpacing:accent||green?2:0 }}>{value}</div>
       {extra && <div style={{ marginTop:6 }}>{extra}</div>}
@@ -341,7 +341,7 @@ function ChatPanel({ onClose, userName }: { onClose: () => void; userName: strin
 
   return (
     <div style={{ position:"fixed", inset:0, background:"#000000cc", zIndex:998, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:TBG, border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}`, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:740, height:"75vh", display:"flex", flexDirection:"column", boxShadow:"0 -8px 40px #00000088" }}>
+      <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}`, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:740, height:"75vh", display:"flex", flexDirection:"column", boxShadow:"0 -8px 40px #00000088" }}>
         <div style={{ padding:"14px 20px", borderBottom:`1px solid var(--border)`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ width:8, height:8, borderRadius:"50%", background:GREEN, boxShadow:`0 0 8px ${GREEN}` }} />
@@ -437,7 +437,7 @@ function StatsTab({ reports, resolved, fuoriUso }: { reports: Report[]; resolved
           { label:"Mezzi fuori uso", value:fuoriUso.length, color:YELLOW, icon:"🔧" },
           { label:"Critici attivi", value:reports.filter(r=>CRITICAL.includes(r.damageType)).length, color:RED, icon:"🚨" },
         ].map(k => (
-          <div key={k.label} style={{ flex:1, minWidth:120, background:TCARD, border:`1px solid ${k.color}33`, borderTop:`3px solid ${k.color}`, borderRadius:10, padding:"12px" }}>
+          <div key={k.label} style={{ flex:1, minWidth:120, background:"var(--card)", border:`1px solid ${k.color}33`, borderTop:`3px solid ${k.color}`, borderRadius:10, padding:"12px" }}>
             <div style={{ fontSize:9, color:"var(--sub)", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{k.icon} {k.label.toUpperCase()}</div>
             <div style={{ fontSize:26, fontWeight:900, color:k.color, fontFamily:"Barlow Condensed, sans-serif" }}>{k.value}</div>
           </div>
@@ -445,7 +445,7 @@ function StatsTab({ reports, resolved, fuoriUso }: { reports: Report[]; resolved
       </div>
 
       {/* Grafico ultimi 7 giorni */}
-      <div style={{ background:TCARD, borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${PURPLE}` }}>
+      <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${PURPLE}` }}>
         <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:14 }}>📅 GUASTI ULTIMI 7 GIORNI</div>
         <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:80 }}>
           {last7.map((d,i) => (
@@ -460,14 +460,14 @@ function StatsTab({ reports, resolved, fuoriUso }: { reports: Report[]; resolved
 
       {/* Mezzi più problematici */}
       {byVehicle.length > 0 && (
-        <div style={{ background:TCARD, borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${ORANGE}` }}>
+        <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${ORANGE}` }}>
           <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:14 }}>🏗 MEZZI PIÙ PROBLEMATICI</div>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {byVehicle.slice(0,6).map((v,i) => (
               <div key={v.label} style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ fontSize:11, color:i===0?ORANGE:"#3b6fa0", fontWeight:700, width:16 }}>{i+1}</div>
                 <div style={{ fontSize:12, color:"var(--text-dim)", width:160, flexShrink:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{v.label}</div>
-                <div style={{ flex:1, height:8, background:TBORDER, borderRadius:4, overflow:"hidden" }}>
+                <div style={{ flex:1, height:8, background:"var(--border)", borderRadius:4, overflow:"hidden" }}>
                   <div style={{ width:`${v.count/maxV*100}%`, height:"100%", background:i===0?ORANGE:BLUE_LT, borderRadius:4, transition:"width .5s" }}/>
                 </div>
                 <div style={{ fontSize:12, fontWeight:800, color:i===0?ORANGE:BLUE_LT, width:20, textAlign:"right" }}>{v.count}</div>
@@ -479,13 +479,13 @@ function StatsTab({ reports, resolved, fuoriUso }: { reports: Report[]; resolved
 
       {/* Tipi di danno */}
       {byDamage.length > 0 && (
-        <div style={{ background:TCARD, borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${RED}` }}>
+        <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${RED}` }}>
           <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:14 }}>🔧 TIPI DI DANNO PIÙ FREQUENTI</div>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {byDamage.slice(0,6).map(d => (
               <div key={d.label} style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ fontSize:12, color:"var(--text-dim)", width:180, flexShrink:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{d.label}</div>
-                <div style={{ flex:1, height:8, background:TBORDER, borderRadius:4, overflow:"hidden" }}>
+                <div style={{ flex:1, height:8, background:"var(--border)", borderRadius:4, overflow:"hidden" }}>
                   <div style={{ width:`${d.count/maxD*100}%`, height:"100%", background:d.color, borderRadius:4, transition:"width .5s" }}/>
                 </div>
                 <div style={{ fontSize:12, fontWeight:800, color:d.color, width:20, textAlign:"right" }}>{d.count}</div>
@@ -527,7 +527,7 @@ function FeedbackPanel({ onClose, userName }: { onClose: () => void; userName: s
   const starLabels = ["","Pessima","Scarsa","Nella media","Buona","Eccellente"];
   return (
     <div style={{ position:"fixed", inset:0, background:"#000000cc", zIndex:998, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:TBG, border:`1px solid var(--border)`, borderTop:`3px solid ${ORANGE}`, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:740, padding:"24px 20px 32px", boxShadow:"0 -8px 40px #00000088" }}>
+      <div style={{ background:"var(--bg)", border:`1px solid var(--border)`, borderTop:`3px solid ${ORANGE}`, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:740, padding:"24px 20px 32px", boxShadow:"0 -8px 40px #00000088" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
           <div>
             <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:20, letterSpacing:2, color:"#e8f4ff" }}>💡 FEEDBACK</div>
@@ -594,7 +594,7 @@ function FeedbackAdminTab() {
         </div>
       ) : (
         <>
-          <div style={{ background:TCARD, borderRadius:12, padding:"16px 20px", border:`1px solid var(--border)`, borderTop:`3px solid #f59e0b`, marginBottom:16, display:"flex", alignItems:"center", gap:16 }}>
+          <div style={{ background:"var(--card)", borderRadius:12, padding:"16px 20px", border:`1px solid var(--border)`, borderTop:`3px solid #f59e0b`, marginBottom:16, display:"flex", alignItems:"center", gap:16 }}>
             <div style={{ textAlign:"center" }}>
               <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:40, color:"#f59e0b", lineHeight:1 }}>{avg}</div>
               <div style={{ fontSize:11, color:"var(--sub)", marginTop:2 }}>su {items.length} feedback</div>
@@ -604,7 +604,7 @@ function FeedbackAdminTab() {
                 <div key={s} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
                   <span style={{ fontSize:11, color:"var(--sub)", width:12 }}>{s}</span>
                   <span style={{ fontSize:12 }}>⭐</span>
-                  <div style={{ flex:1, height:6, background:TBORDER, borderRadius:3, overflow:"hidden" }}>
+                  <div style={{ flex:1, height:6, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
                     <div style={{ width:`${p}%`, height:"100%", background:"#f59e0b", borderRadius:3 }}/>
                   </div>
                   <span style={{ fontSize:11, color:"var(--sub)", width:16 }}>{c}</span>
@@ -614,7 +614,7 @@ function FeedbackAdminTab() {
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {items.map(f=>(
-              <div key={f.id} style={{ background:TCARD, border:`1px solid var(--border)`, borderRadius:10, padding:"13px 15px" }}>
+              <div key={f.id} style={{ background:"var(--card)", border:`1px solid var(--border)`, borderRadius:10, padding:"13px 15px" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:f.text?6:0 }}>
                   <span style={{ fontSize:16 }}>{"⭐".repeat(f.stars)}</span>
                   <span style={{ fontSize:11, color:"var(--sub)", marginLeft:"auto" }}>👤 {f.author} · {formatDate(f.created_at)}</span>
@@ -634,7 +634,7 @@ function NameModal({ onConfirm }: { onConfirm: (name: string) => void }) {
   const [name, setName] = useState("");
   return (
     <div style={{ position:"fixed", inset:0, background:"#000000ee", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-      <div style={{ background:TCARD, border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}`, borderRadius:14, padding:"28px 24px", maxWidth:360, width:"100%" }}>
+      <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}`, borderRadius:14, padding:"28px 24px", maxWidth:360, width:"100%" }}>
         <div style={{ textAlign:"center", marginBottom:20 }}>
           <div style={{ fontSize:34, marginBottom:10 }}>👤</div>
           <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:20, color:"var(--text-bright)", letterSpacing:1.5 }}>COME TI CHIAMI?</div>
@@ -928,7 +928,7 @@ export default function App() {
   const btn: React.CSSProperties = { fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, cursor:"pointer" };
 
   return (
-    <div style={{ minHeight:"100vh", background:TBG, fontFamily:"'Barlow','Barlow Condensed',sans-serif", color:TTEXT }}>
+    <div style={{ minHeight:"100vh", background:"var(--bg)", fontFamily:"'Barlow','Barlow Condensed',sans-serif", color:TTEXT }}>
       <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@500;700;800;900&display=swap" rel="stylesheet" />
       <style>{`
         :root {
@@ -1047,7 +1047,7 @@ export default function App() {
         <div style={{ display:"flex", gap:5, alignItems:"center", flexShrink:0 }}>
           {/* Chat button */}
           <button onClick={()=>{ playClick("soft"); setShowChat(true); setUnreadChat(0); }}
-            style={{ position:"relative", background:"transparent", color:BLUE_LT, border:`1px solid ${TBORDER}`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}>
+            style={{ position:"relative", background:"transparent", color:BLUE_LT, border:`1px solid var(--border)`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}>
             💬
             {unreadChat > 0 && (
               <span style={{ position:"absolute", top:-6, right:-6, background:RED, color:"#fff", borderRadius:"50%", width:18, height:18, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, animation:"pulse 1s ease-in-out infinite" }}>{unreadChat}</span>
@@ -1058,7 +1058,7 @@ export default function App() {
             💡
           </button>
           <button onClick={toggleTheme}
-            style={{ background:"transparent", color:darkMode?"#fbbf24":"#3b6fa0", border:`1px solid ${TBORDER}`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}
+            style={{ background:"transparent", color:darkMode?"#fbbf24":"#3b6fa0", border:`1px solid var(--border)`, borderRadius:7, padding:"7px 9px", cursor:"pointer", fontSize:15 }}
             title={darkMode ? "Passa al tema chiaro" : "Passa al tema scuro"}>
             {darkMode ? "☀️" : "🌙"}
           </button>
@@ -1102,20 +1102,20 @@ export default function App() {
                 <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:18, color:"#e8f4ff" }}>{weather.temp}°C</span>
                 <span style={{ fontSize:11, color:"var(--sub)", textTransform:"capitalize" }}>{weather.description}</span>
               </div>
-              <div className="meteo-sep" style={{ width:1, height:20, background:TBORDER, flexShrink:0 }}/>
+              <div className="meteo-sep" style={{ width:1, height:20, background:"var(--border)", flexShrink:0 }}/>
               <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                 <span style={{ fontSize:11, color:"var(--sub)" }}>💨</span>
                 <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:15, color:wa.color }}>{weather.windSpeed} km/h</span>
                 <span style={{ fontSize:10, color:"var(--sub)" }}>{windDir(weather.windDeg)}</span>
                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:3, background:wa.color+"22", color:wa.color, border:`1px solid ${wa.color}44` }}>{wa.label}</span>
               </div>
-              <div className="meteo-sep" style={{ width:1, height:20, background:TBORDER, flexShrink:0 }}/>
+              <div className="meteo-sep" style={{ width:1, height:20, background:"var(--border)", flexShrink:0 }}/>
               <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                 <span style={{ fontSize:11, color:"var(--sub)" }}>☀️</span>
                 <span style={{ fontSize:11, color:uv.color, fontWeight:700 }}>UV {weather.uvi}</span>
                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:3, background:uv.color+"22", color:uv.color, border:`1px solid ${uv.color}44` }}>{uv.label}</span>
               </div>
-              <div className="meteo-sep" style={{ width:1, height:20, background:TBORDER, flexShrink:0 }}/>
+              <div className="meteo-sep" style={{ width:1, height:20, background:"var(--border)", flexShrink:0 }}/>
               <div style={{ display:"flex", alignItems:"center", gap:5, flexShrink:0 }}>
                 <span style={{ fontSize:11, color:"var(--sub)" }}>🌧️</span>
                 <span style={{ fontSize:11, color: weather.rainProb>=70?"#60a5fa":weather.rainProb>=40?"#93c5fd":"#3b6fa0", fontWeight:700 }}>{weather.rainProb}%</span>
@@ -1123,7 +1123,7 @@ export default function App() {
               </div>
               {weather.windSpeed>=40 && (
                 <>
-                  <div className="meteo-sep" style={{ width:1, height:20, background:TBORDER, flexShrink:0 }}/>
+                  <div className="meteo-sep" style={{ width:1, height:20, background:"var(--border)", flexShrink:0 }}/>
                   <span style={{ fontSize:11, color:wa.color, fontWeight:700 }}>⚠ Verificare condizioni sollevamento</span>
                 </>
               )}
@@ -1139,7 +1139,7 @@ export default function App() {
                     <img src={`https://openweathermap.org/img/wn/${f.icon}.png`} alt="" style={{ width:22, height:22 }}/>
                     <span style={{ fontSize:12, fontWeight:700, color:"#e8f4ff", fontFamily:"Barlow Condensed, sans-serif" }}>{f.temp}°</span>
                     {f.rain > 0 && <span style={{ fontSize:10, color:"#60a5fa" }}>💧{f.rain}%</span>}
-                    {i < weather.forecast.length-1 && <div style={{ width:1, height:14, background:TBORDER, marginLeft:4 }}/>}
+                    {i < weather.forecast.length-1 && <div style={{ width:1, height:14, background:"var(--border)", marginLeft:4 }}/>}
                   </div>
                 ))}
               </div>
@@ -1162,7 +1162,7 @@ export default function App() {
             )}
             <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
               {[{label:"Attivi",value:reports.length,color:BLUE_LT,icon:"📋"},{label:"Critici",value:criticalCount,color:RED,icon:"🚨"},{label:"Fuori Uso",value:fuoriUso.length,color:YELLOW,icon:"🔧"},{label:"Oggi",value:todayCount,color:ORANGE,icon:"📅"}].map(s=>(
-                <div key={s.label} style={{ flex:1, minWidth:70, background:TCARD, border:`1px solid ${s.color}33`, borderTop:`3px solid ${s.color}`, borderRadius:10, padding:"13px 11px" }}>
+                <div key={s.label} style={{ flex:1, minWidth:70, background:"var(--card)", border:`1px solid ${s.color}33`, borderTop:`3px solid ${s.color}`, borderRadius:10, padding:"13px 11px" }}>
                   <div style={{ fontSize:9, color:"var(--sub)", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{s.icon} {s.label.toUpperCase()}</div>
                   <div style={{ fontSize:28, fontWeight:900, color:s.color, fontFamily:"Barlow Condensed, sans-serif", lineHeight:1 }}>{booting ? "…" : s.value}</div>
                 </div>
@@ -1292,7 +1292,7 @@ export default function App() {
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                   {filtered.map((r,i)=>(
                     <div key={r.id} className="card" onClick={()=>{ setSelected(r); setView("detail"); }}
-                      style={{ background:TCARD, border:`1px solid var(--border)`, borderRadius:10, padding:"13px 14px", display:"flex", gap:12, alignItems:"flex-start", animationDelay:i*.03+"s" }}>
+                      style={{ background:"var(--card)", border:`1px solid var(--border)`, borderRadius:10, padding:"13px 14px", display:"flex", gap:12, alignItems:"flex-start", animationDelay:i*.03+"s" }}>
                       <div style={{ width:52, height:52, borderRadius:8, flexShrink:0, overflow:"hidden", background:"var(--input-bg)", display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid var(--border)` }}>
                         {r.photo ? <img src={r.photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <span style={{ fontSize:22 }}>🚢</span>}
                       </div>
@@ -1404,7 +1404,7 @@ export default function App() {
               <InfoCard icon="🔧" label="Tipo Danno" value={selected.damageType} extra={<SeverityBadge type={selected.damageType}/>}/>
               <InfoCard icon="📅" label="Data / Ora" value={formatDate(selected.date)} small/>
             </div>
-            <div style={{ background:TCARD, borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderLeft:`4px solid ${BLUE_LT}`, marginBottom:12 }}>
+            <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderLeft:`4px solid ${BLUE_LT}`, marginBottom:12 }}>
               <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:8 }}>📝 DESCRIZIONE</div>
               <p style={{ fontSize:14, color:"var(--text-dim)", lineHeight:1.8 }}>{selected.description}</p>
             </div>
@@ -1418,7 +1418,7 @@ export default function App() {
         {/* ADMIN LOGIN */}
         {view === "adminLogin" && (
           <div className="anim" style={{ maxWidth:380, margin:"50px auto 0" }}>
-            <div style={{ background:TCARD, border:`1px solid var(--border)`, borderTop:`3px solid ${ORANGE}`, borderRadius:14, padding:"28px 24px" }}>
+            <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid ${ORANGE}`, borderRadius:14, padding:"28px 24px" }}>
               <div style={{ textAlign:"center", marginBottom:24 }}>
                 <div style={{ fontSize:32, marginBottom:10 }}>🔐</div>
                 <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:22, letterSpacing:2, color:"var(--text-bright)" }}>AREA AMMINISTRATORE</div>
@@ -1444,7 +1444,7 @@ export default function App() {
           <div className="anim">
             <div style={{ display:"flex", gap:10, marginBottom:18, flexWrap:"wrap" }}>
               {[{label:"Attivi",value:reports.length,color:BLUE_LT,icon:"📋"},{label:"Critici",value:criticalCount,color:RED,icon:"🚨"},{label:"Fuori Uso",value:fuoriUso.length,color:YELLOW,icon:"🔧"},{label:"Oggi",value:todayCount,color:ORANGE,icon:"📅"}].map(s=>(
-                <div key={s.label} style={{ flex:1, minWidth:70, background:TCARD, border:`1px solid ${s.color}33`, borderTop:`3px solid ${s.color}`, borderRadius:10, padding:"13px 11px" }}>
+                <div key={s.label} style={{ flex:1, minWidth:70, background:"var(--card)", border:`1px solid ${s.color}33`, borderTop:`3px solid ${s.color}`, borderRadius:10, padding:"13px 11px" }}>
                   <div style={{ fontSize:9, color:"var(--sub)", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{s.icon} {s.label.toUpperCase()}</div>
                   <div style={{ fontSize:28, fontWeight:900, color:s.color, fontFamily:"Barlow Condensed, sans-serif", lineHeight:1 }}>{s.value}</div>
                 </div>
@@ -1482,7 +1482,7 @@ export default function App() {
                   </button>
                 </div>
                 {reports.map(r=>(
-                  <div key={r.id} style={{ background:TCARD, border:`1px solid var(--border)`, borderRadius:10, padding:"11px 13px", display:"flex", gap:11, alignItems:"center" }}>
+                  <div key={r.id} style={{ background:"var(--card)", border:`1px solid var(--border)`, borderRadius:10, padding:"11px 13px", display:"flex", gap:11, alignItems:"center" }}>
                     <div style={{ width:44, height:44, borderRadius:8, flexShrink:0, overflow:"hidden", background:"var(--input-bg)", display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid var(--border)`, cursor:"pointer" }}
                       onClick={()=>{ setSelected(r); setView("adminDetail"); }}>
                       {r.photo ? <img src={r.photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <span style={{ fontSize:18 }}>🚢</span>}
@@ -1640,7 +1640,7 @@ export default function App() {
               <InfoCard icon="🔧" label="Tipo Danno" value={selected.damageType} extra={<SeverityBadge type={selected.damageType}/>}/>
               <InfoCard icon="📅" label="Data / Ora" value={formatDate(selected.date)} small/>
             </div>
-            <div style={{ background:TCARD, borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderLeft:`4px solid ${BLUE_LT}` }}>
+            <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderLeft:`4px solid ${BLUE_LT}` }}>
               <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:8 }}>📝 DESCRIZIONE</div>
               <p style={{ fontSize:14, color:"var(--text-dim)", lineHeight:1.8 }}>{selected.description}</p>
             </div>
@@ -1672,7 +1672,7 @@ export default function App() {
               <InfoCard icon="📅" label="Data Segnalazione" value={formatDate(selected.date)} small/>
               {selected.resolvedAt && <InfoCard icon="✅" label="Data Risoluzione" value={formatDate(selected.resolvedAt)} small green/>}
             </div>
-            <div style={{ background:TCARD, borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderLeft:`4px solid ${BLUE_LT}`, marginBottom:12 }}>
+            <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderLeft:`4px solid ${BLUE_LT}`, marginBottom:12 }}>
               <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:8 }}>📝 DESCRIZIONE DANNO</div>
               <p style={{ fontSize:14, color:"var(--text-dim)", lineHeight:1.8 }}>{selected.description}</p>
             </div>

@@ -932,7 +932,7 @@ export default function App() {
 
   function handleSetName(name: string) {
     setUserName(name); localStorage.setItem("cp_username", name); setShowNameModal(false);
-    requestNotifPermission().then(ok => { setNotifEnabled(ok); if (!ok) setTimeout(() => requestNotifPermission().then(setNotifEnabled), 500); });
+    requestNotifPermission().then(ok => { setNotifEnabled(ok); if (ok) registerFcmToken(); else setTimeout(() => requestNotifPermission().then(ok2 => { setNotifEnabled(ok2); if (ok2) registerFcmToken(); }), 500); });
   }
 
   async function handleSave() {
@@ -1322,7 +1322,7 @@ export default function App() {
             {view==="admin" ? "🔐 MODALITÀ AMMINISTRATORE" : "🌐 DATABASE CONDIVISO — AGGIORNAMENTO AUTOMATICO"}
           </span>
           {!notifEnabled && view==="dashboard" && (
-            <button onClick={()=>requestNotifPermission().then(ok=>setNotifEnabled(ok))}
+            <button onClick={()=>{ requestNotifPermission().then(ok=>setNotifEnabled(ok)); registerFcmToken(); }}
               style={{ marginLeft:"auto", fontSize:10, color:ORANGE, background:"transparent", border:`1px solid ${ORANGE}44`, borderRadius:4, padding:"3px 8px", cursor:"pointer", fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, letterSpacing:1 }}>
               🔔 Attiva notifiche
             </button>

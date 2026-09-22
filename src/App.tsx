@@ -1,4 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { initializeApp, getApps } from "firebase/app";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+
+// ─── Firebase config ───────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDgdRv7WIPGn3h2n3-Yk66ex53qdaF8A-0",
+  authDomain: "porto-danni.firebaseapp.com",
+  projectId: "porto-danni",
+  storageBucket: "porto-danni.appspot.com",
+  messagingSenderId: "871082649796",
+  appId: "1:871082649796:web:f32d9995df944bbd5c4191",
+};
+const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const VAPID_KEY = "BLF5slygSGfVg7dKiOuRUByY5mtOkFcRdxZR030VlQFjugJdgvwu3LvrnXzZa2I3MLPhynlUKldqF7-3X5--D3c";
 
 // ─── Supabase config ───────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://xmrtrghaiiycbrysrmwn.supabase.co";
@@ -793,6 +807,7 @@ export default function App() {
   const [unreadChat, setUnreadChat] = useState(0);
   const [lastMsgCount, setLastMsgCount] = useState(0);
   const [notifEnabled, setNotifEnabled] = useState(false);
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
   const [showMenu, setShowMenu]         = useState(false);
   const [showReset, setShowReset]       = useState(false);
   const [resetPwd, setResetPwd]         = useState("");
@@ -842,8 +857,19 @@ export default function App() {
   // Mostra modal nome se non salvato
   useEffect(() => { if (!userName) setShowNameModal(true); }, [userName]);
 
-  // Richiedi permesso notifiche
-  useEffect(() => { requestNotifPermission().then(ok => setNotifEnabled(ok)); }, []);
+  // Richiedi permesso notifiche + registra token FCM
+  useEffect(() => {
+    requestNotifPermission().then(ok => setNotifEnabled(ok));
+    registerFcmToken();
+    // Ascolta messaggi FCM in foreground
+    try {
+      const messaging = getMessaging(firebaseApp);
+      const unsub = onMessage(messaging, (payload) => {
+        console.log("FCM foreground:", payload);
+      });
+      return unsub;
+    } catch {}
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoadErr(false);
@@ -931,8 +957,54 @@ export default function App() {
       setErrors({});
       goHome({ title:"SEGNALAZIONE SALVATA", sub:`La scheda ${id} è stata registrata e condivisa con tutti.` });
       insertMessage("🤖 Sistema", `🚨 Nuova segnalazione: ${rep.plate} (${rep.vehicleType}) — ${rep.damageType} — segnalato da ${rep.driver}`).catch(e=>console.error("notifica chat non inviata", e));
+      sendPushToAll("🚨 Nuovo danno segnalato", `${rep.plate} (${rep.vehicleType}) — ${rep.damageType}`);
     } catch(e) { console.error(e); alert("Errore nel salvataggio. Controlla la connessione."); }
     setBusy(false);
+  }
+
+  // ─── Firebase FCM ─────────────────────────────────────────────────────────────
+  async function registerFcmToken() {
+    try {
+      if (!("Notification" in window)) return;
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+      const messaging = getMessaging(firebaseApp);
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+      if (!token) return;
+      setFcmToken(token);
+      // Salva il token su Supabase
+      await sbFetch("fcm_tokens", {
+        method: "POST",
+        headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({ token, updated_at: new Date().toISOString() }),
+      }).catch(() => {}); // ignora errore se tabella non esiste ancora
+    } catch (err) {
+      console.warn("FCM token registration failed:", err);
+    }
+  }
+
+  async function sendPushToAll(title: string, body: string) {
+    try {
+      const tokensData = await sbFetch("fcm_tokens?select=token").catch(() => []);
+      if (!tokensData || tokensData.length === 0) return;
+      const tokens = tokensData.map((r: { token: string }) => r.token);
+      const res = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokens, title, body }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        // Rimuovi token non validi
+        if (result.invalidTokens?.length) {
+          await sbFetch(`fcm_tokens?token=in.(${result.invalidTokens.map((t: string) => `"${t}"`).join(",")})`, {
+            method: "DELETE", headers: { "Prefer": "return=minimal" },
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.warn("sendPushToAll error:", err);
+    }
   }
 
   async function confirmDelete() {

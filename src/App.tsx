@@ -535,6 +535,25 @@ function StatsTab({ reports, resolved, fuoriUso }: { reports: Report[]; resolved
   });
   const maxDay = Math.max(...last7.map(d=>d.count), 1);
 
+  // Guasti per mese (anno corrente)
+  const currentYear = new Date().getFullYear();
+  const byMonth = Array.from({length:12}, (_,i) => {
+    const label = new Date(currentYear, i, 1).toLocaleDateString("it-IT", {month:"short"});
+    const count = all.filter(r => { const d = new Date(r.date); return d.getFullYear() === currentYear && d.getMonth() === i; }).length;
+    return { label, count };
+  });
+  const maxMonth = Math.max(...byMonth.map(m=>m.count), 1);
+  const currentMonth = new Date().getMonth();
+
+  // Guasti per anno (ultimi 4 anni)
+  const thisYear = new Date().getFullYear();
+  const byYear = Array.from({length:4}, (_,i) => {
+    const year = thisYear - 3 + i;
+    const count = all.filter(r => new Date(r.date).getFullYear() === year).length;
+    return { label: String(year), count };
+  });
+  const maxYear = Math.max(...byYear.map(y=>y.count), 1);
+
   // Tasso risoluzione
   const totale = all.length;
   const risolti = resolved.length;
@@ -573,6 +592,51 @@ function StatsTab({ reports, resolved, fuoriUso }: { reports: Report[]; resolved
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Grafico mensile (anno corrente) */}
+      <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}` }}>
+        <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:14 }}>📆 GUASTI MENSILI {currentYear}</div>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:90 }}>
+          {byMonth.map((m,i) => (
+            <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+              {m.count > 0 && <div style={{ fontSize:9, color:i===currentMonth?ORANGE:BLUE_LT, fontWeight:700 }}>{m.count}</div>}
+              <div style={{ width:"100%", background:i===currentMonth?(m.count>0?ORANGE:ORANGE+"44"):(m.count>0?BLUE_LT:BORDER), borderRadius:"3px 3px 0 0", height:`${Math.max(3, m.count/maxMonth*70)}px`, transition:"height .5s", opacity:m.count>0?1:0.25 }}/>
+              <div style={{ fontSize:8, color:i===currentMonth?ORANGE:"var(--sub)", fontWeight:i===currentMonth?800:400, textTransform:"capitalize" }}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop:8, fontSize:10, color:"var(--sub)", display:"flex", gap:14, flexWrap:"wrap" }}>
+          <span><span style={{ color:ORANGE }}>■</span> Mese corrente</span>
+          <span><span style={{ color:BLUE_LT }}>■</span> Mesi passati</span>
+          <span style={{ marginLeft:"auto", fontWeight:700, color:"var(--text)" }}>Totale {currentYear}: <span style={{ color:ORANGE }}>{byMonth.reduce((a,m)=>a+m.count,0)}</span></span>
+        </div>
+      </div>
+
+      {/* Grafico annuale */}
+      <div style={{ background:"var(--card)", borderRadius:12, padding:"16px", border:`1px solid var(--border)`, borderTop:`3px solid ${GREEN}` }}>
+        <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:14 }}>📊 ANDAMENTO ANNUALE</div>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:12, height:100 }}>
+          {byYear.map((y,i) => (
+            <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+              <div style={{ fontSize:11, color:i===3?ORANGE:GREEN, fontWeight:700 }}>{y.count > 0 ? y.count : "—"}</div>
+              <div style={{ width:"100%", background:i===3?(y.count>0?ORANGE:ORANGE+"44"):(y.count>0?GREEN:BORDER), borderRadius:"4px 4px 0 0", height:`${Math.max(4, y.count/maxYear*76)}px`, transition:"height .5s", opacity:y.count>0?1:0.2 }}/>
+              <div style={{ fontSize:10, color:i===3?ORANGE:"var(--sub)", fontWeight:i===3?800:400 }}>{y.label}</div>
+            </div>
+          ))}
+        </div>
+        {byYear.some(y=>y.count>0) && (() => {
+          const prev = byYear[2].count; const curr = byYear[3].count;
+          const diff = curr - prev;
+          const pct = prev > 0 ? Math.round(Math.abs(diff)/prev*100) : null;
+          return (
+            <div style={{ marginTop:10, fontSize:11, color:"var(--sub)", textAlign:"center" }}>
+              {pct !== null
+                ? <span style={{ color:diff<=0?GREEN:RED, fontWeight:700 }}>{diff<=0?"▼":"▲"} {pct}% rispetto all'anno precedente</span>
+                : <span>Primo anno di dati disponibili</span>}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Mezzi più problematici */}
@@ -965,20 +1029,21 @@ export default function App() {
   // ─── Firebase FCM ─────────────────────────────────────────────────────────────
   async function registerFcmToken() {
     try {
-      if (!("Notification" in window)) return;
+      if (!("Notification" in window)) { alert("Notifiche non supportate su questo browser"); return; }
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") return;
+      if (permission !== "granted") { alert("Permesso notifiche negato. Abilitalo dalle impostazioni del telefono."); return; }
       const messaging = getMessaging(firebaseApp);
       const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-      if (!token) return;
+      if (!token) { alert("Token FCM non ottenuto. Riprova."); return; }
       setFcmToken(token);
       // Salva il token su Supabase
       await sbFetch("fcm_tokens", {
         method: "POST",
         headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify({ token, updated_at: new Date().toISOString() }),
-      }).catch(() => {}); // ignora errore se tabella non esiste ancora
+      }).catch(() => {});
     } catch (err) {
+      alert("Errore FCM: " + String(err));
       console.warn("FCM token registration failed:", err);
     }
   }
@@ -1009,6 +1074,7 @@ export default function App() {
 
   async function confirmDelete() {
     const rep = modal?.report; if (!rep || busy) return;
+    if (!isAdmin) { alert("⛔ Solo gli amministratori possono eliminare le segnalazioni."); setModal(null); return; }
     setBusy(true);
     try {
       await deleteReport(rep.id);
@@ -1270,6 +1336,15 @@ export default function App() {
                     <div>
                       <div style={{ fontWeight:700, letterSpacing:0.5 }}>{darkMode ? "Tema Chiaro" : "Tema Scuro"}</div>
                       <div style={{ fontSize:10, color:"var(--sub)" }}>Ora: {darkMode ? "🌙 Scuro" : "☀️ Chiaro"}</div>
+                    </div>
+                  </button>
+                  {/* Notifiche Push FCM */}
+                  <button onClick={()=>{ playClick("soft"); setShowMenu(false); registerFcmToken().then(()=>alert(fcmToken ? "Notifiche attive!" : "Tocca ancora se non arriva la richiesta")); }}
+                    style={{ ...btn, width:"100%", display:"flex", alignItems:"center", gap:12, padding:"13px 16px", background:"transparent", border:"none", borderBottom:`1px solid var(--border)`, color:"var(--text)", fontSize:13, textAlign:"left" as const, cursor:"pointer" }}>
+                    <span style={{ fontSize:18 }}>{fcmToken ? "🔔" : "🔕"}</span>
+                    <div>
+                      <div style={{ fontWeight:700, letterSpacing:0.5 }}>{fcmToken ? "Notifiche Attive" : "Abilita Notifiche Push"}</div>
+                      <div style={{ fontSize:10, color:"var(--sub)" }}>{fcmToken ? "Ricevi avvisi su questo dispositivo" : "Tocca per attivare"}</div>
                     </div>
                   </button>
                   {/* Feedback */}
@@ -1657,10 +1732,12 @@ export default function App() {
               <div style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700, marginBottom:8 }}>📝 DESCRIZIONE</div>
               <p style={{ fontSize:14, color:"var(--text-dim)", lineHeight:1.8 }}>{selected.description}</p>
             </div>
-            <button onClick={()=>setModal({ type:"delete", report:selected })}
-              style={{ ...btn, width:"100%", padding:"11px", borderRadius:8, background:"transparent", color:RED, border:`1px solid ${RED}44`, fontSize:12, letterSpacing:1.5, textTransform:"uppercase" }}>
-              🗑 Elimina segnalazione (pubblicata per errore)
-            </button>
+            {isAdmin && (
+              <button onClick={()=>setModal({ type:"delete", report:selected })}
+                style={{ ...btn, width:"100%", padding:"11px", borderRadius:8, background:"transparent", color:RED, border:`1px solid ${RED}44`, fontSize:12, letterSpacing:1.5, textTransform:"uppercase" }}>
+                🗑 Elimina segnalazione (solo admin)
+              </button>
+            )}
           </div>
         )}
 

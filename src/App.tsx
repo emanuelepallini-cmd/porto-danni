@@ -1442,9 +1442,11 @@ export default function App() {
       {(view==="dashboard"||view==="admin") && (
         <div style={{ background:`linear-gradient(90deg,${BLUE}22,transparent 60%)`, borderBottom:`1px solid var(--border)`, padding:"7px 20px", display:"flex", alignItems:"center", gap:8 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:GREEN, boxShadow:`0 0 8px ${GREEN}` }} />
-          <span style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700 }}>
-            {view==="admin" ? "🔐 MODALITÀ AMMINISTRATORE" : "🌐 DATABASE CONDIVISO — AGGIORNAMENTO AUTOMATICO"}
-          </span>
+          {view==="admin" && (
+            <span style={{ fontSize:10, color:"var(--sub)", letterSpacing:2, fontWeight:700 }}>
+              🔐 MODALITÀ AMMINISTRATORE
+            </span>
+          )}
           {/* Utenti attivi */}
           {activeUsers.length > 0 && (
             <div style={{ position:"relative", marginLeft:8 }}>

@@ -853,14 +853,14 @@ const ROLE_OPTIONS = [
   { key:"superadmin", label:"Superadmin",      icon:"🛡", color:"#a855f7", desc:"Accesso completo" },
 ] as const;
 
-function NameModal({ onConfirm, currentName, onCancel }: { onConfirm: (name: string, role?: Role) => void; currentName?: string; onCancel?: () => void }) {
+function NameModal({ onConfirm, currentName, onCancel, forceRoleStep }: { onConfirm: (name: string, role?: Role) => void; currentName?: string; onCancel?: () => void; forceRoleStep?: boolean }) {
   const [name, setName] = useState(currentName || "");
-  const [step, setStep] = useState<"role"|"name">(currentName ? "name" : "role");
+  const [step, setStep] = useState<"role"|"name">((currentName && !forceRoleStep) ? "name" : "role");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [pwd, setPwd] = useState("");
   const [pwdErr, setPwdErr] = useState("");
-  const isChange = !!currentName;
-  const needsPassword = !isChange && selectedRole && selectedRole !== "operator";
+  const isChange = !!currentName && !forceRoleStep;
+  const needsPassword = selectedRole && selectedRole !== "operator";
 
   function handleConfirm() {
     if (!name.trim()) return;
@@ -869,7 +869,7 @@ function NameModal({ onConfirm, currentName, onCancel }: { onConfirm: (name: str
       if (pwd !== correct) { setPwdErr("❌ Password errata"); return; }
     }
     setPwdErr("");
-    onConfirm(name.trim(), needsPassword ? selectedRole as Role : undefined);
+    onConfirm(name.trim(), selectedRole ? selectedRole as Role : undefined);
   }
 
   if (step === "role" && !isChange) {
@@ -878,7 +878,7 @@ function NameModal({ onConfirm, currentName, onCancel }: { onConfirm: (name: str
         <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}`, borderRadius:14, padding:"28px 20px", maxWidth:380, width:"100%" }}>
           <div style={{ textAlign:"center", marginBottom:22 }}>
             <div style={{ fontSize:34, marginBottom:10 }}>⚓</div>
-            <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:22, letterSpacing:2 }}>BENVENUTO</div>
+            <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:22, letterSpacing:2 }}>{forceRoleStep ? "CAMBIA RUOLO" : "BENVENUTO"}</div>
             <div style={{ fontSize:12, color:"var(--sub)", marginTop:4 }}>Seleziona il tuo ruolo per continuare</div>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -988,6 +988,7 @@ export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [userName, setUserName] = useState(() => localStorage.getItem("cp_username") || "");
   const [showNameModal, setShowNameModal] = useState(false);
+  const [nameModalForceRole, setNameModalForceRole] = useState(false);
   const [unreadChat, setUnreadChat] = useState(0);
   const [lastMsgCount, setLastMsgCount] = useState(0);
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -1407,7 +1408,7 @@ export default function App() {
         }
       `}</style>
 
-      {showNameModal && <NameModal onConfirm={handleSetName} currentName={userName || undefined} onCancel={userName ? ()=>setShowNameModal(false) : undefined} />}
+      {showNameModal && <NameModal onConfirm={handleSetName} currentName={userName || undefined} onCancel={userName ? ()=>setShowNameModal(false) : undefined} forceRoleStep={nameModalForceRole} />}
       {showChat && <ChatPanel onClose={()=>{ playClick("soft"); setShowChat(false); setUnreadChat(0); }} userName={userName} />}
       {showFeedback && <FeedbackPanel onClose={()=>setShowFeedback(false)} userName={userName} />}
 
@@ -1504,12 +1505,21 @@ export default function App() {
                     </div>
                   </button>
                   {/* Cambia nome */}
-                  <button onClick={()=>{ playClick("soft"); setShowMenu(false); setShowNameModal(true); }}
+                  <button onClick={()=>{ playClick("soft"); setShowMenu(false); setNameModalForceRole(false); setShowNameModal(true); }}
                     style={{ ...btn, width:"100%", display:"flex", alignItems:"center", gap:12, padding:"13px 16px", background:"transparent", border:"none", borderBottom:`1px solid var(--border)`, color:"var(--text)", fontSize:13, textAlign:"left" as const, cursor:"pointer" }}>
                     <span style={{ fontSize:18 }}>✏️</span>
                     <div>
                       <div style={{ fontWeight:700, letterSpacing:0.5 }}>Cambia Nome</div>
-                      <div style={{ fontSize:10, color:"var(--sub)" }}>Ora: {userName} · <span style={{ color: userRole==='superadmin'?"#a855f7":userRole==='admin'?"#fbbf24":userRole==='capoturno'?"#22c55e":"var(--sub)", fontWeight:700, textTransform:"uppercase" }}>{userRole}</span></div>
+                      <div style={{ fontSize:10, color:"var(--sub)" }}>Ora: {userName}</div>
+                    </div>
+                  </button>
+                  {/* Cambia ruolo */}
+                  <button onClick={()=>{ playClick("soft"); setShowMenu(false); setNameModalForceRole(true); setShowNameModal(true); }}
+                    style={{ ...btn, width:"100%", display:"flex", alignItems:"center", gap:12, padding:"13px 16px", background:"transparent", border:"none", borderBottom:`1px solid var(--border)`, color:"var(--text)", fontSize:13, textAlign:"left" as const, cursor:"pointer" }}>
+                    <span style={{ fontSize:18 }}>🎭</span>
+                    <div>
+                      <div style={{ fontWeight:700, letterSpacing:0.5 }}>Cambia Ruolo</div>
+                      <div style={{ fontSize:10, color:"var(--sub)" }}>Ruolo attuale: <span style={{ color: userRole==='superadmin'?"#a855f7":userRole==='admin'?"#fbbf24":userRole==='capoturno'?"#22c55e":"var(--sub)", fontWeight:700, textTransform:"uppercase" }}>{userRole}</span></div>
                     </div>
                   </button>
                   {/* Notifiche Push FCM */}

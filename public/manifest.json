@@ -1,0 +1,24 @@
+{
+  "name": "Segnalazione Danni - Compagnia Portuali",
+  "short_name": "PortoDanni",
+  "description": "App segnalazione danni mezzi portuali",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080f1c",
+  "theme_color": "#080f1c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

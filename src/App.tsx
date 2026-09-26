@@ -80,6 +80,16 @@ async function insertFeedback(stars: number, text: string, anonymous: boolean, a
   })});
 }
 async function getFeedback() { return sbFetch("feedback?select=*&order=created_at.desc"); }
+async function getUsers()   { return sbFetch("users?select=*&order=username.asc"); }
+async function upsertUser(username: string, role: string) {
+  return sbFetch("users", { method:"POST", headers:{"Prefer":"resolution=merge-duplicates,return=minimal"}, body: JSON.stringify({ username, role }) });
+}
+async function updateUserBlocked(username: string, blocked: boolean) {
+  return sbFetch(`users?username=eq.${encodeURIComponent(username)}`, { method:"PATCH", headers:{"Prefer":"return=minimal"}, body: JSON.stringify({ blocked }) });
+}
+async function deleteUser(username: string) {
+  return sbFetch(`users?username=eq.${encodeURIComponent(username)}`, { method:"DELETE", headers:{"Prefer":"return=minimal"} });
+}
 async function resetAllData() {
   const tables = ["reports","resolved","fuori_uso","messages","feedback"];
   for (const t of tables) {
@@ -302,6 +312,11 @@ const MEZZI_BY_LABEL = new Map(MEZZI.map(m => [mezzoLabel(m), m]));
 const VEHICLE_TYPES  = Array.from(new Set(MEZZI.map(m => m.categoria)));
 const DAMAGE_TYPES   = ["Carrozzeria","Impianto Idraulico","Motore / Meccanica","Impianto Elettrico","Pneumatici / Cingoli","Struttura / Telaio","Braccio / Benna","Cabina / Interno","Sistema di Sollevamento","Altro"];
 const ADMIN_PASSWORD = "porto2026";
+const ROLE_PASSWORDS: Record<string, string> = {
+  capoturno:  "turno2026",
+  admin:      "porto2026",
+  superadmin: "super2026",
+};
 
 // ─── Ruoli utente ──────────────────────────────────────────────────────────────
 type Role = 'operator' | 'capoturno' | 'admin' | 'superadmin';
@@ -831,25 +846,99 @@ function FeedbackAdminTab() {
 }
 
 // ─── Nome utente modal ─────────────────────────────────────────────────────────
-function NameModal({ onConfirm, currentName, onCancel }: { onConfirm: (name: string) => void; currentName?: string; onCancel?: () => void }) {
+const ROLE_OPTIONS = [
+  { key:"operator",   label:"Operatore",      icon:"👷", color:"#64748b", desc:"Segnala danni · Chat" },
+  { key:"capoturno",  label:"Capoturno",       icon:"⭐", color:"#22c55e", desc:"+ Fuori uso · Statistiche" },
+  { key:"admin",      label:"Officina / Admin",icon:"🔧", color:"#fbbf24", desc:"+ Pannello admin" },
+  { key:"superadmin", label:"Superadmin",      icon:"🛡", color:"#a855f7", desc:"Accesso completo" },
+] as const;
+
+function NameModal({ onConfirm, currentName, onCancel }: { onConfirm: (name: string, role?: Role) => void; currentName?: string; onCancel?: () => void }) {
   const [name, setName] = useState(currentName || "");
+  const [step, setStep] = useState<"role"|"name">(currentName ? "name" : "role");
+  const [selectedRole, setSelectedRole] = useState<string>("");
+  const [pwd, setPwd] = useState("");
+  const [pwdErr, setPwdErr] = useState("");
   const isChange = !!currentName;
+  const needsPassword = !isChange && selectedRole && selectedRole !== "operator";
+
+  function handleConfirm() {
+    if (!name.trim()) return;
+    if (needsPassword) {
+      const correct = ROLE_PASSWORDS[selectedRole];
+      if (pwd !== correct) { setPwdErr("❌ Password errata"); return; }
+    }
+    setPwdErr("");
+    onConfirm(name.trim(), needsPassword ? selectedRole as Role : undefined);
+  }
+
+  if (step === "role" && !isChange) {
+    return (
+      <div style={{ position:"fixed", inset:0, background:"#000000ee", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+        <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}`, borderRadius:14, padding:"28px 20px", maxWidth:380, width:"100%" }}>
+          <div style={{ textAlign:"center", marginBottom:22 }}>
+            <div style={{ fontSize:34, marginBottom:10 }}>⚓</div>
+            <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:22, letterSpacing:2 }}>BENVENUTO</div>
+            <div style={{ fontSize:12, color:"var(--sub)", marginTop:4 }}>Seleziona il tuo ruolo per continuare</div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {ROLE_OPTIONS.map(r=>(
+              <button key={r.key} onClick={()=>{ setSelectedRole(r.key); setStep("name"); }}
+                style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:`${r.color}11`, border:`1.5px solid ${r.color}44`, borderRadius:10, cursor:"pointer", transition:"all .15s", textAlign:"left" as const }}
+                onMouseEnter={e=>(e.currentTarget.style.borderColor=r.color)}
+                onMouseLeave={e=>(e.currentTarget.style.borderColor=`${r.color}44`)}>
+                <span style={{ fontSize:24 }}>{r.icon}</span>
+                <div>
+                  <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:16, letterSpacing:1, color:r.color }}>{r.label}</div>
+                  <div style={{ fontSize:11, color:"var(--sub)", marginTop:2 }}>{r.desc}</div>
+                </div>
+                <span style={{ marginLeft:"auto", color:r.color, fontSize:18 }}>›</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const roleInfo = ROLE_OPTIONS.find(r=>r.key===selectedRole);
   return (
     <div style={{ position:"fixed", inset:0, background:"#000000ee", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-      <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid ${BLUE_LT}`, borderRadius:14, padding:"28px 24px", maxWidth:360, width:"100%" }}>
+      <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid ${roleInfo?.color||BLUE_LT}`, borderRadius:14, padding:"28px 24px", maxWidth:360, width:"100%" }}>
         <div style={{ textAlign:"center", marginBottom:20 }}>
-          <div style={{ fontSize:34, marginBottom:10 }}>👤</div>
-          <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:20, color:"var(--text-bright)", letterSpacing:1.5 }}>{isChange ? "CAMBIA NOME" : "COME TI CHIAMI?"}</div>
-          <div style={{ fontSize:12, color:"var(--sub)", marginTop:4 }}>Verrà mostrato nelle segnalazioni e in chat</div>
+          <div style={{ fontSize:34, marginBottom:8 }}>{roleInfo?.icon||"👤"}</div>
+          {!isChange && roleInfo && (
+            <div style={{ display:"inline-block", background:`${roleInfo.color}22`, border:`1px solid ${roleInfo.color}55`, borderRadius:6, padding:"3px 12px", fontSize:11, fontWeight:800, color:roleInfo.color, letterSpacing:1, marginBottom:10 }}>
+              {roleInfo.label.toUpperCase()}
+            </div>
+          )}
+          <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:20, letterSpacing:1.5 }}>{isChange ? "CAMBIA NOME" : "COME TI CHIAMI?"}</div>
+          <div style={{ fontSize:12, color:"var(--sub)", marginTop:4 }}>Il nome comparirà nelle segnalazioni e in chat</div>
         </div>
-        <input value={name} onChange={e=>setName(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&name.trim()&&onConfirm(name.trim())}
-          placeholder="Es. Mario Rossi"
-          style={{ width:"100%", background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"12px 14px", fontSize:14, fontFamily:"inherit", marginBottom:16 }}/>
-        <button onClick={()=>name.trim()&&onConfirm(name.trim())} disabled={!name.trim()}
-          style={{ width:"100%", padding:"12px", borderRadius:8, background:name.trim()?ORANGE:"#1a2a3a", color:"#fff", border:"none", cursor:name.trim()?"pointer":"default", fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, fontSize:15, letterSpacing:1.5 }}>
-          {isChange ? "✓ Salva nuovo nome" : "Entra nell'app →"}
+        <input value={name} onChange={e=>{ setName(e.target.value); setPwdErr(""); }}
+          onKeyDown={e=>e.key==="Enter"&&name.trim()&&!needsPassword&&handleConfirm()}
+          placeholder="Es. Mario Rossi" autoFocus
+          style={{ width:"100%", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"12px 14px", fontSize:14, fontFamily:"inherit", marginBottom:needsPassword?10:16 }}/>
+        {needsPassword && (
+          <>
+            <div style={{ fontSize:11, color:"var(--sub)", marginBottom:6, letterSpacing:0.5 }}>🔑 Password {roleInfo?.label}</div>
+            <input type="password" value={pwd} onChange={e=>{ setPwd(e.target.value); setPwdErr(""); }}
+              onKeyDown={e=>e.key==="Enter"&&name.trim()&&pwd&&handleConfirm()}
+              placeholder="Inserisci password…"
+              style={{ width:"100%", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text)", border:`1px solid ${pwdErr?RED:"var(--border)"}`, borderRadius:8, padding:"12px 14px", fontSize:14, fontFamily:"inherit", marginBottom:pwdErr?6:16 }}/>
+            {pwdErr && <div style={{ fontSize:11, color:RED, marginBottom:12 }}>{pwdErr}</div>}
+          </>
+        )}
+        <button onClick={handleConfirm} disabled={!name.trim()||(!!needsPassword&&!pwd)}
+          style={{ width:"100%", padding:"12px", borderRadius:8, background:name.trim()?(roleInfo?.color||ORANGE):"#1a2a3a", color:"#fff", border:"none", cursor:name.trim()?"pointer":"default", fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, fontSize:15, letterSpacing:1.5 }}>
+          {isChange ? "✓ Salva nome" : "Entra →"}
         </button>
+        {!isChange && (
+          <button onClick={()=>{ setStep("role"); setRoleErr(""); }}
+            style={{ width:"100%", padding:"10px", borderRadius:8, background:"transparent", color:"var(--sub)", border:"none", cursor:"pointer", fontFamily:"Barlow Condensed, sans-serif", fontSize:12, marginTop:6 }}>
+            ← Cambia ruolo
+          </button>
+        )}
         {isChange && onCancel && (
           <button onClick={onCancel}
             style={{ width:"100%", padding:"10px", borderRadius:8, background:"transparent", color:"var(--sub)", border:"none", cursor:"pointer", fontFamily:"Barlow Condensed, sans-serif", fontSize:13, marginTop:8 }}>
@@ -869,6 +958,9 @@ export default function App() {
   const [selected, setSelected] = useState<Report | null>(null);
   const [booting, setBooting]   = useState(true);
   const [userRole, setUserRole] = useState<Role>(() => (localStorage.getItem("cp_role") as Role) || 'operator');
+  const [users, setUsers]           = useState<{username:string;role:string;blocked:boolean}[]>([]);
+  const [userForm, setUserForm]     = useState({ username:"", role:"operator" });
+  const [userBusy, setUserBusy]     = useState(false);
   const [isAdmin, setIsAdmin]   = useState(() => { const r = localStorage.getItem("cp_role") as Role; return r === 'admin' || r === 'superadmin'; });
   const [adminTab, setAdminTab] = useState("active");
   const [dashTab, setDashTab]       = useState("active");
@@ -1050,9 +1142,9 @@ export default function App() {
   useEffect(() => { const t = setInterval(loadData, 30000); return () => clearInterval(t); }, [loadData]);
   useEffect(() => { const t = setInterval(checkChat, 15000); return () => clearInterval(t); }, [checkChat]);
 
-  async function handleSetName(name: string) {
+  async function handleSetName(name: string, preselectedRole?: Role) {
     setUserName(name); localStorage.setItem("cp_username", name); setShowNameModal(false);
-    const role = await getUserRole(name);
+    const role: Role = preselectedRole || await getUserRole(name);
     setUserRole(role); localStorage.setItem("cp_role", role);
     if (role === 'admin' || role === 'superadmin') { setIsAdmin(true); }
     // Ri-registra token solo se permesso già concesso — non chiede mai permesso automaticamente
@@ -1888,8 +1980,8 @@ export default function App() {
               ))}
             </div>
             <div style={{ display:"flex", marginBottom:16, border:`1px solid var(--border)`, borderRadius:10, overflow:"hidden" }}>
-              {[{key:"active",label:"⚠ ATTIVI",color:ORANGE,count:reports.length},{key:"fuoriuso",label:"🔧 FUORI USO",color:"var(--fuori-uso-text)",count:fuoriUso.length},{key:"resolved",label:"✅ RISOLTI",color:GREEN,count:resolved.length},{key:"stats",label:"📊 STATS",color:"#a855f7",count:0},{key:"feedback",label:"💡 FEEDBACK",color:BLUE_LT,count:0}].map(t=>(
-                <button key={t.key} onClick={()=>setAdminTab(t.key)}
+              {[{key:"active",label:"⚠ ATTIVI",color:ORANGE,count:reports.length},{key:"fuoriuso",label:"🔧 FUORI USO",color:"var(--fuori-uso-text)",count:fuoriUso.length},{key:"resolved",label:"✅ RISOLTI",color:GREEN,count:resolved.length},{key:"stats",label:"📊 STATS",color:"#a855f7",count:0},{key:"feedback",label:"💡 FEEDBACK",color:BLUE_LT,count:0},...(isSuperAdmin?[{key:"utenti",label:"👥 UTENTI",color:"#06b6d4",count:users.length}]:[])].map(t=>(
+                <button key={t.key} onClick={()=>{ setAdminTab(t.key); if(t.key==="utenti") getUsers().then(setUsers); }}
                   style={{ ...btn, flex:1, padding:"11px 4px", border:"none", fontSize:10, letterSpacing:0.8, transition:"all .15s",
                     background:adminTab===t.key?t.color+"22":"transparent", color:adminTab===t.key?t.color:"#2a4a6e",
                     borderBottom:adminTab===t.key?`2px solid ${t.color}`:"2px solid transparent" }}>
@@ -2056,6 +2148,103 @@ export default function App() {
 
             {adminTab==="stats" && <StatsTab reports={reports} resolved={resolved} fuoriUso={fuoriUso} />}
             {adminTab==="feedback" && <FeedbackAdminTab />}
+
+            {/* TAB UTENTI — solo superadmin */}
+            {adminTab==="utenti" && isSuperAdmin && (
+              <div>
+                {/* Form aggiunta utente */}
+                <div style={{ background:"var(--card)", border:`1px solid #06b6d433`, borderLeft:`3px solid #06b6d4`, borderRadius:10, padding:"16px", marginBottom:16 }}>
+                  <div style={{ fontSize:11, fontWeight:800, letterSpacing:2, color:"#06b6d4", marginBottom:12 }}>➕ AGGIUNGI / MODIFICA UTENTE</div>
+                  <input
+                    placeholder="Nome utente (es. Mario)"
+                    value={userForm.username}
+                    onChange={e=>setUserForm(f=>({...f, username:e.target.value}))}
+                    style={{ width:"100%", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"11px 12px", fontSize:14, fontFamily:"inherit", marginBottom:10 }}
+                  />
+                  <select
+                    value={userForm.role}
+                    onChange={e=>setUserForm(f=>({...f, role:e.target.value}))}
+                    style={{ width:"100%", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"11px 12px", fontSize:14, fontFamily:"inherit", marginBottom:12 }}>
+                    <option value="operator">🟡 Operator — può segnalare e chattare</option>
+                    <option value="capoturno">🟢 Capoturno — + fuori uso e statistiche</option>
+                    <option value="admin">🟠 Admin / Officina — + pannello admin</option>
+                    <option value="superadmin">🟣 Superadmin — accesso completo</option>
+                  </select>
+                  <button
+                    disabled={!userForm.username.trim() || userBusy}
+                    onClick={async()=>{
+                      if (!userForm.username.trim()) return;
+                      setUserBusy(true);
+                      try {
+                        await upsertUser(userForm.username.trim(), userForm.role);
+                        const updated = await getUsers(); setUsers(updated);
+                        setUserForm({ username:"", role:"operator" });
+                        playClick("success");
+                      } catch { playClick("error"); alert("Errore nel salvataggio"); }
+                      finally { setUserBusy(false); }
+                    }}
+                    style={{ ...btn, width:"100%", background:"#06b6d4", color:"#fff", border:"none", borderRadius:8, padding:"12px", fontSize:13, letterSpacing:1, opacity:!userForm.username.trim()?0.4:1 }}>
+                    {userBusy ? "…" : "💾 Salva Utente"}
+                  </button>
+                </div>
+
+                {/* Lista utenti */}
+                <div style={{ fontSize:11, fontWeight:800, letterSpacing:2, color:"var(--sub)", marginBottom:10 }}>UTENTI REGISTRATI ({users.length})</div>
+                {users.length===0 ? (
+                  <div style={{ textAlign:"center", padding:30, color:"var(--sub)", fontSize:13 }}>Nessun utente trovato</div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    {users.map(u=>{
+                      const roleColor = u.role==="superadmin"?"#a855f7":u.role==="admin"?"#fbbf24":u.role==="capoturno"?"#22c55e":"#64748b";
+                      const roleLabel = u.role==="superadmin"?"🟣 Superadmin":u.role==="admin"?"🟠 Admin":u.role==="capoturno"?"🟢 Capoturno":"🟡 Operator";
+                      return (
+                        <div key={u.username} style={{ background:"var(--card)", border:`1px solid ${u.blocked?"#ef444433":roleColor+"33"}`, borderLeft:`3px solid ${u.blocked?RED:roleColor}`, borderRadius:10, padding:"13px 14px", opacity:u.blocked?0.6:1 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                            <div style={{ flex:1 }}>
+                              <div style={{ fontWeight:800, fontSize:15, fontFamily:"Barlow Condensed, sans-serif", letterSpacing:1, color:"var(--text)" }}>{u.username}</div>
+                              <div style={{ fontSize:11, color:roleColor, fontWeight:700, marginTop:2 }}>{roleLabel}{u.blocked?" · 🚫 BLOCCATO":""}</div>
+                            </div>
+                            {/* Cambia ruolo inline */}
+                            <select
+                              value={u.role}
+                              onChange={async e=>{
+                                const newRole = e.target.value;
+                                try { await upsertUser(u.username, newRole); const upd = await getUsers(); setUsers(upd); playClick("success"); }
+                                catch { playClick("error"); alert("Errore cambio ruolo"); }
+                              }}
+                              style={{ background:"var(--input-bg)", color:"var(--text)", border:`1px solid ${roleColor}44`, borderRadius:6, padding:"5px 8px", fontSize:11, fontFamily:"inherit" }}>
+                              <option value="operator">Operator</option>
+                              <option value="capoturno">Capoturno</option>
+                              <option value="admin">Admin</option>
+                              <option value="superadmin">Superadmin</option>
+                            </select>
+                            {/* Blocca / Sblocca */}
+                            <button
+                              onClick={async()=>{
+                                try { await updateUserBlocked(u.username, !u.blocked); const upd = await getUsers(); setUsers(upd); playClick("soft"); }
+                                catch { alert("Errore"); }
+                              }}
+                              style={{ ...btn, background:u.blocked?"#22c55e22":"#ef444422", border:`1px solid ${u.blocked?"#22c55e44":"#ef444444"}`, color:u.blocked?GREEN:RED, borderRadius:6, padding:"5px 10px", fontSize:11 }}>
+                              {u.blocked?"✅ Sblocca":"🚫 Blocca"}
+                            </button>
+                            {/* Elimina */}
+                            <button
+                              onClick={async()=>{
+                                if (!confirm(`Eliminare l'utente "${u.username}"?`)) return;
+                                try { await deleteUser(u.username); const upd = await getUsers(); setUsers(upd); playClick("success"); }
+                                catch { alert("Errore eliminazione"); }
+                              }}
+                              style={{ ...btn, background:"#ef444411", border:`1px solid #ef444444`, color:RED, borderRadius:6, padding:"5px 10px", fontSize:11 }}>
+                              🗑
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

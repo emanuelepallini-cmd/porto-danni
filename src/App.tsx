@@ -1683,7 +1683,7 @@ export default function App() {
               {[
                 { label:"Attivi",   value:reports.length,   color:BLUE_LT,                    icon:"■", tab:"active",   critical:false, today:false },
                 { label:"Critici",  value:criticalCount,    color:RED,                         icon:"▲", tab:"active",   critical:true,  today:false },
-                ...(canFuoriUso ? [{ label:"Fuori Uso",value:fuoriUso.length,  color:"var(--fuori-uso-text)",     icon:"●", tab:"fuoriuso", critical:false, today:false }] : []),
+                { label:"Fuori Uso",value:fuoriUso.length,  color:"var(--fuori-uso-text)",     icon:"●", tab:"fuoriuso", critical:false, today:false },
                 { label:"Oggi",     value:todayCount,       color:ORANGE,                      icon:"◆", tab:"active",   critical:false, today:true  },
               ].map(s=>{
                 const isActive = dashTab===s.tab && (s.critical===filterCritical) && (s.today===filterToday);
@@ -1703,7 +1703,7 @@ export default function App() {
             </div>
 
             {/* TAB FUORI USO */}
-            {dashTab==="fuoriuso" && canFuoriUso && (
+            {dashTab==="fuoriuso" && (
               fuoriUso.length===0 ? (
                 <div style={{ textAlign:"center", padding:"50px 20px" }}>
                   <div style={{ fontSize:46, marginBottom:12 }}>🔧</div>

@@ -38,6 +38,11 @@ async function getReports()  { return sbFetch("reports?select=*&order=date.desc"
 async function getResolved() { return sbFetch("resolved?select=*&order=resolved_at.desc"); }
 async function getFuoriUso() { return sbFetch("fuori_uso?select=*&order=date_in.desc"); }
 async function getMessages() { return sbFetch("messages?select=*&order=created_at.asc&limit=100"); }
+async function getMezziExtra() { return sbFetch("mezzi_extra?select=*&order=categoria.asc,descrizione.asc"); }
+async function insertMezzoExtra(m: { id:string; descrizione:string; numero:string; targa:string; categoria:string }) {
+  return sbFetch("mezzi_extra", { method:"POST", headers:{"Prefer":"return=minimal"}, body: JSON.stringify(m) });
+}
+async function deleteMezzoExtra(id: string) { return sbFetch(`mezzi_extra?id=eq.${id}`, { method:"DELETE" }); }
 
 async function insertReport(r: Report) {
   return sbFetch("reports", { method: "POST", body: JSON.stringify({
@@ -232,7 +237,7 @@ function windAlert(speed: number) {
 }
 
 // ─── Elenco mezzi aziendali (codici forniti dall'azienda) ──────────────────────
-type Mezzo = { descrizione: string; numero: string; targa: string; categoria: string };
+type Mezzo = { id?: string; descrizione: string; numero: string; targa: string; categoria: string };
 const MEZZI: Mezzo[] = [
   { descrizione:"AutoPanda", numero:"5", targa:"BY112YW", categoria:"Auto" },
   { descrizione:"AutoFiesta", numero:"10", targa:"CZ342SC", categoria:"Auto" },
@@ -407,9 +412,10 @@ function FieldInput({ value, onChange, placeholder, error, style={}, list }: { v
     style={{ width:"100%", background:"var(--input-bg)", color:"var(--text)", border:`1px solid ${error?RED:BORDER}`, borderRadius:8, padding:"12px 14px", fontSize:14, fontFamily:"inherit", ...style }} />;
 }
 const MEZZI_CUSTOM = "__altro__";
-function MezzoSelect({ value, isCustom, onSelect, onCustomToggle, onCustomChange, error, accent, category }:
-  { value: string; isCustom: boolean; onSelect: (label: string) => void; onCustomToggle: () => void; onCustomChange: (v: string) => void; error?: boolean; accent: string; category?: string }) {
-  const filtered = category ? MEZZI.filter(m=>m.categoria===category) : MEZZI;
+function MezzoSelect({ value, isCustom, onSelect, onCustomToggle, onCustomChange, error, accent, category, mezziList }:
+  { value: string; isCustom: boolean; onSelect: (label: string) => void; onCustomToggle: () => void; onCustomChange: (v: string) => void; error?: boolean; accent: string; category?: string; mezziList?: Mezzo[] }) {
+  const list = mezziList || MEZZI;
+  const filtered = category ? list.filter(m=>m.categoria===category) : list;
   return (
     <>
       {!isCustom ? (
@@ -974,6 +980,10 @@ export default function App() {
   const [fuPlateCustom, setFuPlateCustom] = useState(false);
   const [fuErrors, setFuErrors] = useState<Record<string,boolean>>({});
   const [showFuForm, setShowFuForm] = useState(false);
+  const [mezziExtra, setMezziExtra] = useState<Mezzo[]>([]);
+  const [showFleetModal, setShowFleetModal] = useState(false);
+  const [fleetForm, setFleetForm] = useState({ descrizione:"", numero:"", targa:"", categoria:"" });
+  const [fleetBusy, setFleetBusy] = useState(false);
   const [toast, setToast]       = useState<{ id: number; title: string; sub: string } | null>(null);
   const [busy, setBusy]         = useState(false);
   const [modal, setModal]       = useState<{ type: string; report?: Report; fuoriUso?: FuoriUso; note?: string } | null>(null);
@@ -1087,7 +1097,7 @@ export default function App() {
   const loadData = useCallback(async () => {
     setLoadErr(false);
     try {
-      const [reps, res, fu] = await Promise.all([getReports(), getResolved(), getFuoriUso()]);
+      const [reps, res, fu, me] = await Promise.all([getReports(), getResolved(), getFuoriUso(), getMezziExtra().catch(()=>[])]);
       const newReps = reps.map(dbToReport);
       if (prevReportsLen.current > 0 && newReps.length > prevReportsLen.current) {
         const newest = newReps[0];
@@ -1098,6 +1108,7 @@ export default function App() {
       setReports(newReps);
       setResolved(res.map(dbToResolved));
       setFuoriUso(fu.map(dbToFuoriUso));
+      setMezziExtra((me as Record<string,unknown>[]).map(r=>({ id:r.id as string, descrizione:r.descrizione as string, numero:r.numero as string, targa:r.targa as string, categoria:r.categoria as string })));
     } catch(e) { console.error(e); setLoadErr(true); }
     setBooting(false);
   }, []);
@@ -1147,7 +1158,10 @@ export default function App() {
     setUserName(name); localStorage.setItem("cp_username", name); setShowNameModal(false);
     const role: Role = preselectedRole || await getUserRole(name);
     setUserRole(role); localStorage.setItem("cp_role", role);
-    if (role === 'admin' || role === 'superadmin') { setIsAdmin(true); }
+    const adminAccess = role === 'admin' || role === 'superadmin';
+    setIsAdmin(adminAccess);
+    // Se stava nell'admin panel e il nuovo ruolo non lo consente, torna alla dashboard
+    if (!adminAccess) setView("dashboard");
     // Ri-registra token solo se permesso già concesso — non chiede mai permesso automaticamente
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       setNotifEnabled(true); registerFcmToken(false);
@@ -1349,6 +1363,8 @@ export default function App() {
   const canFuoriUso   = userRole === 'capoturno' || userRole === 'admin' || userRole === 'superadmin';
   const canAdminPanel = userRole === 'admin' || userRole === 'superadmin';
   const isSuperAdmin  = userRole === 'superadmin';
+  const allMezzi      = [...MEZZI, ...mezziExtra];
+  const allCategorie  = Array.from(new Set(allMezzi.map(m=>m.categoria)));
   const btn: React.CSSProperties = { fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, cursor:"pointer" };
 
   return (
@@ -1411,6 +1427,77 @@ export default function App() {
       {showNameModal && <NameModal onConfirm={handleSetName} currentName={userName || undefined} onCancel={userName ? ()=>setShowNameModal(false) : undefined} forceRoleStep={nameModalForceRole} />}
       {showChat && <ChatPanel onClose={()=>{ playClick("soft"); setShowChat(false); setUnreadChat(0); }} userName={userName} />}
       {showFeedback && <FeedbackPanel onClose={()=>setShowFeedback(false)} userName={userName} />}
+
+      {/* MODAL GESTISCI FLOTTA */}
+      {showFleetModal && (
+        <div style={{ position:"fixed", inset:0, background:"#000000cc", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16, overflowY:"auto" }}>
+          <div style={{ background:"var(--card)", border:`1px solid var(--border)`, borderTop:`3px solid #22d3ee`, borderRadius:14, padding:"24px 20px", maxWidth:420, width:"100%", maxHeight:"90vh", overflowY:"auto" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+              <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:20, letterSpacing:2, color:"#22d3ee" }}>🚛 GESTISCI FLOTTA</div>
+              <button onClick={()=>setShowFleetModal(false)} style={{ background:"none", border:"none", color:"var(--sub)", fontSize:22, cursor:"pointer" }}>✕</button>
+            </div>
+            {/* Form aggiunta */}
+            <div style={{ background:"var(--input-bg)", borderRadius:10, padding:"16px", marginBottom:20 }}>
+              <div style={{ fontSize:11, color:"var(--sub)", letterSpacing:1, marginBottom:12, fontWeight:700 }}>➕ AGGIUNGI MEZZO</div>
+              <select value={fleetForm.categoria} onChange={e=>setFleetForm(f=>({...f,categoria:e.target.value}))}
+                style={{ width:"100%", background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"10px 12px", fontSize:13, fontFamily:"inherit", marginBottom:8 }}>
+                <option value="">— Categoria —</option>
+                {allCategorie.map(c=><option key={c} value={c}>{c}</option>)}
+                <option value="__nuova__">✎ Nuova categoria…</option>
+              </select>
+              {fleetForm.categoria === "__nuova__" && (
+                <input placeholder="Nome nuova categoria" value={""} onChange={e=>setFleetForm(f=>({...f,categoria:e.target.value}))}
+                  style={{ width:"100%", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"10px 12px", fontSize:13, fontFamily:"inherit", marginBottom:8 }}/>
+              )}
+              <input placeholder="Descrizione (es. Carrello Hyster H16)" value={fleetForm.descrizione} onChange={e=>setFleetForm(f=>({...f,descrizione:e.target.value}))}
+                style={{ width:"100%", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"10px 12px", fontSize:13, fontFamily:"inherit", marginBottom:8 }}/>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
+                <input placeholder="N° mezzo (es. 51)" value={fleetForm.numero} onChange={e=>setFleetForm(f=>({...f,numero:e.target.value}))}
+                  style={{ background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"10px 12px", fontSize:13, fontFamily:"inherit" }}/>
+                <input placeholder="Targa / ID" value={fleetForm.targa} onChange={e=>setFleetForm(f=>({...f,targa:e.target.value.toUpperCase()}))}
+                  style={{ background:"var(--input-bg)", color:"var(--text)", border:`1px solid var(--border)`, borderRadius:8, padding:"10px 12px", fontSize:13, fontFamily:"Barlow Condensed, sans-serif", letterSpacing:2 }}/>
+              </div>
+              <button disabled={fleetBusy || !fleetForm.categoria || fleetForm.categoria==="__nuova__" || !fleetForm.descrizione}
+                onClick={async()=>{
+                  if (!fleetForm.categoria || !fleetForm.descrizione) return;
+                  setFleetBusy(true);
+                  try {
+                    const nm: Mezzo = { id: genId(), descrizione:fleetForm.descrizione.trim(), numero:fleetForm.numero.trim(), targa:fleetForm.targa.trim(), categoria:fleetForm.categoria };
+                    await insertMezzoExtra(nm);
+                    setMezziExtra(prev=>[...prev, nm]);
+                    setFleetForm({ descrizione:"", numero:"", targa:"", categoria:fleetForm.categoria });
+                  } catch(e) { alert("Errore salvataggio"); }
+                  setFleetBusy(false);
+                }}
+                style={{ width:"100%", padding:"11px", borderRadius:8, background:(fleetForm.categoria && fleetForm.categoria!=="__nuova__" && fleetForm.descrizione)?"#22d3ee":"#1a2a3a", color:"#000", border:"none", cursor:"pointer", fontFamily:"Barlow Condensed, sans-serif", fontWeight:700, fontSize:14, letterSpacing:1 }}>
+                {fleetBusy ? "…" : "➕ Aggiungi alla flotta"}
+              </button>
+            </div>
+            {/* Lista mezzi extra */}
+            <div style={{ fontSize:11, color:"var(--sub)", letterSpacing:1, marginBottom:10, fontWeight:700 }}>MEZZI AGGIUNTI ({mezziExtra.length})</div>
+            {mezziExtra.length===0 ? (
+              <div style={{ textAlign:"center", padding:"20px", fontSize:13, color:"var(--sub)" }}>Nessun mezzo aggiunto ancora</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {mezziExtra.map(m=>(
+                  <div key={m.id} style={{ display:"flex", alignItems:"center", gap:10, background:"var(--input-bg)", borderRadius:8, padding:"10px 12px", border:`1px solid var(--border)` }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:800, fontSize:15, color:"#22d3ee", letterSpacing:1 }}>{m.descrizione}{m.numero ? ` · n°${m.numero}` : ""}</div>
+                      <div style={{ fontSize:11, color:"var(--sub)", marginTop:2 }}>{m.categoria}{m.targa ? ` · ${m.targa}` : ""}</div>
+                    </div>
+                    <button onClick={async()=>{
+                      if (!confirm(`Rimuovere "${m.descrizione}" dalla flotta?`)) return;
+                      await deleteMezzoExtra(m.id);
+                      setMezziExtra(prev=>prev.filter(x=>x.id!==m.id));
+                    }} style={{ background:"none", border:`1px solid ${RED}44`, borderRadius:6, color:RED, cursor:"pointer", padding:"5px 9px", fontSize:12 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ fontSize:10, color:"var(--sub)", marginTop:16, textAlign:"center" }}>I mezzi base della flotta non appaiono qui ma sono sempre disponibili nelle segnalazioni</div>
+          </div>
+        </div>
+      )}
 
       {/* MODALS */}
       <Modal show={modal?.type==="deleteFuoriUso"} onClose={()=>setModal(null)} borderColor={GREEN} icon="✅" title="MEZZO RIENTRATO" titleColor={GREEN}>
@@ -1513,6 +1600,17 @@ export default function App() {
                       <div style={{ fontSize:10, color:"var(--sub)" }}>Ora: {userName}</div>
                     </div>
                   </button>
+                  {/* Gestisci flotta */}
+                  {canFuoriUso && (
+                    <button onClick={()=>{ playClick("soft"); setShowMenu(false); setShowFleetModal(true); }}
+                      style={{ ...btn, width:"100%", display:"flex", alignItems:"center", gap:12, padding:"13px 16px", background:"transparent", border:"none", borderBottom:`1px solid var(--border)`, color:"var(--text)", fontSize:13, textAlign:"left" as const, cursor:"pointer" }}>
+                      <span style={{ fontSize:18 }}>🚛</span>
+                      <div>
+                        <div style={{ fontWeight:700, letterSpacing:0.5 }}>Gestisci Flotta</div>
+                        <div style={{ fontSize:10, color:"var(--sub)" }}>Aggiungi / rimuovi mezzi dalla lista</div>
+                      </div>
+                    </button>
+                  )}
                   {/* Cambia ruolo */}
                   <button onClick={()=>{ playClick("soft"); setShowMenu(false); setNameModalForceRole(true); setShowNameModal(true); }}
                     style={{ ...btn, width:"100%", display:"flex", alignItems:"center", gap:12, padding:"13px 16px", background:"transparent", border:"none", borderBottom:`1px solid var(--border)`, color:"var(--text)", fontSize:13, textAlign:"left" as const, cursor:"pointer" }}>
@@ -1875,9 +1973,9 @@ export default function App() {
               </div>
               <div>
                 <Label text="Targa / ID Mezzo *"/>
-                <MezzoSelect value={form.plate} isCustom={plateCustom} error={errors.plate} accent={ORANGE} category={form.vehicleType}
+                <MezzoSelect value={form.plate} isCustom={plateCustom} error={errors.plate} accent={ORANGE} category={form.vehicleType} mezziList={allMezzi}
                   onSelect={v=>{
-                    const m = MEZZI_BY_LABEL.get(v);
+                    const m = allMezzi.find(x=>mezzoLabel(x)===v);
                     setForm(f=>({ ...f, plate:v, vehicleType: m ? m.categoria : f.vehicleType }));
                   }}
                   onCustomToggle={()=>{ setPlateCustom(c=>!c); setForm(f=>({ ...f, plate:"" })); }}
@@ -2068,9 +2166,9 @@ export default function App() {
                       </div>
                       <div style={{ flex:1, minWidth:130 }}>
                         <Label text="Targa / ID Mezzo *"/>
-                        <MezzoSelect value={fuForm.plate} isCustom={fuPlateCustom} error={fuErrors.plate} accent={YELLOW} category={fuForm.vehicleType}
+                        <MezzoSelect value={fuForm.plate} isCustom={fuPlateCustom} error={fuErrors.plate} accent={YELLOW} category={fuForm.vehicleType} mezziList={allMezzi}
                           onSelect={v=>{
-                            const m = MEZZI_BY_LABEL.get(v);
+                            const m = allMezzi.find(x=>mezzoLabel(x)===v);
                             setFuForm(f=>({ ...f, plate:v, vehicleType: m ? m.categoria : f.vehicleType }));
                           }}
                           onCustomToggle={()=>{ setFuPlateCustom(c=>!c); setFuForm(f=>({ ...f, plate:"" })); }}

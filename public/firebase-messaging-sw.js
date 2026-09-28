@@ -1,50 +1,57 @@
-// Firebase Messaging Service Worker
+// Service Worker notifiche push — Porto Danni
 // File: public/firebase-messaging-sw.js
+// Gestisce direttamente l'evento "push" (senza SDK Firebase) per avere pieno controllo:
+// - mostra SEMPRE il banner di sistema (obbligatorio su iPhone, altrimenti iOS revoca le notifiche)
+// - avvisa l'app aperta così può suonare e mostrare il banner interno
 
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
-firebase.initializeApp({
-  apiKey: "AIzaSyDgdRv7WIPGn3h2n3-Yk66ex53qdaF8A-0",
-  authDomain: "porto-danni.firebaseapp.com",
-  projectId: "porto-danni",
-  storageBucket: "porto-danni.appspot.com",
-  messagingSenderId: "871082649796",
-  appId: "1:871082649796:web:f32d9995df944bbd5c4191"
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { data: { body: event.data ? event.data.text() : '' } };
+  }
+  const d = payload.data || {};
+  const n = payload.notification || {};
+  const title = d.title || n.title || 'Porto Danni';
+  const body  = d.body  || n.body  || 'Nuovo evento nel porto';
+  const url   = d.url   || '/';
+  const tag   = d.tag   || ('porto-' + Date.now());
+
+  event.waitUntil((async () => {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const appVisible = clientList.some((c) => c.visibilityState === 'visible');
+
+    // Avvisa l'app aperta (suono + banner interno)
+    clientList.forEach((c) => c.postMessage({ type: 'PUSH_RECEIVED', title, body, data: d }));
+
+    await self.registration.showNotification(title, {
+      body,
+      icon: '/pwa-192x192.png',
+      tag,
+      renotify: true,
+      requireInteraction: true,      // il banner resta finché non viene toccato (Android/desktop)
+      vibrate: [300, 120, 300, 120, 300],
+      silent: appVisible,             // se l'app è aperta suona l'app, altrimenti suona il sistema
+      timestamp: Date.now(),
+      data: { url },
+    });
+  })());
 });
 
-const messaging = firebase.messaging();
-
-// Gestisce notifiche quando l'app è in background / chiusa
-messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Notifica in background ricevuta:', payload);
-
-  const notificationTitle = payload.notification?.title || 'Porto Danni';
-  const notificationOptions = {
-    body: payload.notification?.body || 'Nuovo evento nel porto',
-    icon: '/icon-192.png',
-    badge: '/icon-72.png',
-    vibrate: [200, 100, 200],
-    data: payload.data,
-    actions: [
-      { action: 'open', title: 'Apri app' }
-    ]
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-// Click sulla notifica: apre o porta in primo piano l'app
+// Tocco sulla notifica: apre l'app o la porta in primo piano
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.focus();
-        }
+        if (client.url.includes(self.location.origin) && 'focus' in client) return client.focus();
       }
-      return clients.openWindow('/');
+      return self.clients.openWindow(url);
     })
   );
 });

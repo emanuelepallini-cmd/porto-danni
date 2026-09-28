@@ -23,7 +23,6 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil((async () => {
     const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const appVisible = clientList.some((c) => c.visibilityState === 'visible');
 
     // Avvisa l'app aperta (suono + banner interno)
     clientList.forEach((c) => c.postMessage({ type: 'PUSH_RECEIVED', title, body, data: d }));
@@ -35,7 +34,7 @@ self.addEventListener('push', (event) => {
       renotify: true,
       requireInteraction: true,      // il banner resta finché non viene toccato (Android/desktop)
       vibrate: [300, 120, 300, 120, 300],
-      silent: appVisible,             // se l'app è aperta suona l'app, altrimenti suona il sistema
+      silent: false,                  // sempre con suono: su iPhone una notifica "silenziosa" non accende lo schermo
       timestamp: Date.now(),
       data: { url },
     });

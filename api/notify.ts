@@ -8,6 +8,18 @@ import { getMessaging } from 'firebase-admin/messaging';
 // Inizializza Firebase Admin (una sola volta) — API modulare di firebase-admin v12+
 // (la vecchia forma admin.apps / admin.credential / admin.messaging() non esiste più nella v14
 //  e faceva fallire il server ad ogni invio)
+// Accetta la chiave in qualsiasi formato incollato su Vercel:
+// con virgolette, con \\n letterali, con a capo veri, o l'intero JSON del service account
+function normalizePrivateKey(raw: string): string {
+  let k = raw.trim();
+  if (k.startsWith('{')) {
+    try { k = JSON.parse(k).private_key || k; } catch { /* non è JSON */ }
+  }
+  k = k.replace(/^['"]+|['"]+$/g, '');
+  k = k.replace(/\\n/g, '\n').replace(/\r/g, '');
+  return k.trim() + '\n';
+}
+
 function ensureFirebase() {
   if (getApps().length) return;
   initializeApp({
@@ -15,7 +27,7 @@ function ensureFirebase() {
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       // La chiave privata su Vercel ha \n come stringa letterale — va convertita
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+      privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY || ''),
     }),
   });
 }
@@ -49,6 +61,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Messaggio "data-only": il banner lo costruisce il service worker,
     // così non ci sono doppioni e funziona uguale su iPhone, Android e PC.
+    const pk = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY || '');
+    if (!pk.includes('-----BEGIN PRIVATE KEY-----') || !pk.includes('-----END PRIVATE KEY-----')) {
+      // Solo diagnosi di formato: la chiave non viene mai mostrata
+      return res.status(500).json({ error: `Chiave su Vercel non valida: BEGIN=${pk.includes('BEGIN PRIVATE KEY')} END=${pk.includes('END PRIVATE KEY')} lunghezza=${pk.length}` });
+    }
     ensureFirebase();
     const response = await getMessaging().sendEachForMulticast({
       tokens,

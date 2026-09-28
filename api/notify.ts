@@ -57,7 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { title, body, url, delay, all, exclude } = req.body as {
+  const { title, body, url, delay, all, exclude, dryRun } = req.body as {
+    dryRun?: boolean;    // true = verifica i telefoni senza consegnare nulla
     tokens?: string[];
     all?: boolean;       // true = invia a tutti i telefoni registrati
     exclude?: string;    // token da escludere (chi ha generato l'evento)
@@ -108,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           TTL: '86400',    // se il telefono è spento, consegna entro 24 ore
         },
       },
-    });
+    }, dryRun === true);
 
     console.log(`Notifiche inviate: ${response.successCount} ok, ${response.failureCount} fallite`);
 

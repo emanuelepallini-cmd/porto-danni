@@ -30,6 +30,7 @@ self.addEventListener('push', (event) => {
     await self.registration.showNotification(title, {
       body,
       icon: '/pwa-192x192.png',
+      badge: '/badge-96.png',         // icona piccola nella barra di stato Android
       tag,
       renotify: true,
       requireInteraction: true,      // il banner resta finché non viene toccato (Android/desktop)

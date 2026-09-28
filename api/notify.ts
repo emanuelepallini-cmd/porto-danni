@@ -32,13 +32,35 @@ function ensureFirebase() {
   });
 }
 
+// Lista telefoni registrati (stessa chiave pubblica "anon" già usata dall'app)
+const SUPABASE_URL = 'https://xmrtrghaiiycbrysrmwn.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtcnRyZ2hhaWl5Y2JyeXNybXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MjM1NTAsImV4cCI6MjA5NDQ5OTU1MH0.zo52TZvvPWaM4Yrkr0rlM_DhafsUidWxucixP2p8JCc';
+const sbHeaders = { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` };
+
+async function loadAllTokens(): Promise<string[]> {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/fcm_tokens?select=token`, { headers: sbHeaders });
+  if (!r.ok) throw new Error('Lettura token fallita: ' + r.status);
+  const rows = (await r.json()) as { token: string }[];
+  return Array.from(new Set(rows.map((x) => x.token).filter(Boolean)));
+}
+
+async function deleteTokens(tokens: string[]) {
+  if (!tokens.length) return;
+  const list = tokens.map((t) => `"${t}"`).join(',');
+  await fetch(`${SUPABASE_URL}/rest/v1/fcm_tokens?token=in.(${encodeURIComponent(list)})`, {
+    method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' },
+  }).catch(() => {});
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { tokens, title, body, url, delay } = req.body as {
-    tokens: string[];
+  const { title, body, url, delay, all, exclude } = req.body as {
+    tokens?: string[];
+    all?: boolean;       // true = invia a tutti i telefoni registrati
+    exclude?: string;    // token da escludere (chi ha generato l'evento)
     title: string;
     body: string;
     url?: string;
@@ -51,8 +73,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Variabili mancanti su Vercel: ' + missing.join(', ') });
   }
 
-  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-    return res.status(400).json({ error: 'tokens array required' });
+  let tokens: string[] = Array.isArray(req.body?.tokens) ? req.body.tokens : [];
+  if (all) {
+    try { tokens = await loadAllTokens(); } catch (e) { return res.status(500).json({ error: String(e) }); }
+  }
+  if (exclude) tokens = tokens.filter((t) => t !== exclude);
+  if (tokens.length === 0) {
+    return res.status(200).json({ successCount: 0, failureCount: 0, invalidTokens: [], errors: [] });
   }
 
   const wait = Math.min(Math.max(Number(delay) || 0, 0), 8);
@@ -99,6 +126,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
     });
+
+    await deleteTokens(invalidTokens); // pulizia automatica telefoni non più validi
 
     const errors = response.responses
       .map((r) => (r.success ? null : `${r.error?.code || 'errore'}: ${r.error?.message || ''}`.slice(0, 200)))

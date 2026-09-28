@@ -2,12 +2,16 @@
 // File: api/notify.ts
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
-// Inizializza Firebase Admin (una sola volta)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
+// Inizializza Firebase Admin (una sola volta) — API modulare di firebase-admin v12+
+// (la vecchia forma admin.apps / admin.credential / admin.messaging() non esiste più nella v14
+//  e faceva fallire il server ad ogni invio)
+function ensureFirebase() {
+  if (getApps().length) return;
+  initializeApp({
+    credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       // La chiave privata su Vercel ha \n come stringa letterale — va convertita
@@ -29,6 +33,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     delay?: number; // secondi di attesa (solo per la notifica di prova, max 8)
   };
 
+  // Diagnosi: controlla che le variabili Firebase esistano su Vercel (mostra solo i NOMI, mai i valori)
+  const missing = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'].filter((k) => !process.env[k]);
+  if (missing.length) {
+    return res.status(500).json({ error: 'Variabili mancanti su Vercel: ' + missing.join(', ') });
+  }
+
   if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
     return res.status(400).json({ error: 'tokens array required' });
   }
@@ -39,7 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Messaggio "data-only": il banner lo costruisce il service worker,
     // così non ci sono doppioni e funziona uguale su iPhone, Android e PC.
-    const response = await admin.messaging().sendEachForMulticast({
+    ensureFirebase();
+    const response = await getMessaging().sendEachForMulticast({
       tokens,
       data: {
         title: String(title || 'Porto Danni'),
@@ -72,13 +83,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
+    const errors = response.responses
+      .map((r) => (r.success ? null : `${r.error?.code || 'errore'}: ${r.error?.message || ''}`.slice(0, 200)))
+      .filter(Boolean);
+
     return res.status(200).json({
       successCount: response.successCount,
       failureCount: response.failureCount,
       invalidTokens,
+      errors,
     });
   } catch (err) {
     console.error('Errore invio notifiche:', err);
-    return res.status(500).json({ error: 'Errore interno' });
+    const msg = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: msg.slice(0, 300) });
   }
 }

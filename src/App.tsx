@@ -1083,7 +1083,7 @@ export default function App() {
   const [userBusy, setUserBusy]     = useState(false);
   const [isAdmin, setIsAdmin]   = useState(() => { const r = localStorage.getItem("cp_role") as Role; return r === 'admin' || r === 'superadmin'; });
   const [adminTab, setAdminTab] = useState("active");
-  const [dashTab, setDashTab]       = useState("active");
+  const [dashTab, setDashTab]       = useState(() => localStorage.getItem("cp_role") === "attrezzista" ? "attivita" : "active");
   const [filterCritical, setFilterCritical] = useState(false);
   const [filterToday, setFilterToday]       = useState(false);
   const [filterType, setFilterType] = useState("Tutti");
@@ -1325,6 +1325,8 @@ export default function App() {
     setIsAdmin(adminAccess);
     // Se stava nell'admin panel e il nuovo ruolo non lo consente, torna alla dashboard
     if (!adminAccess) setView("dashboard");
+    // L'attrezzista parte dal pannello attività, gli altri dalle segnalazioni
+    setDashTab(role === "attrezzista" ? "attivita" : "active"); setFilterCritical(false); setFilterToday(false);
     // Ri-registra token solo se permesso già concesso — non chiede mai permesso automaticamente
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       setNotifEnabled(true); registerFcmToken(false);
@@ -2308,49 +2310,29 @@ export default function App() {
                 <button onClick={loadData} style={{ ...btn, background:RED, color:"#fff", border:"none", borderRadius:6, padding:"4px 10px", fontSize:12 }}>Riprova</button>
               </div>
             )}
-            <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", gap:8, marginBottom:20 }}>
               {[
                 { label:"Attivi",   value:reports.length,   color:BLUE_LT,                    icon:"■", tab:"active",   critical:false, today:false },
                 { label:"Critici",  value:criticalCount,    color:RED,                         icon:"▲", tab:"active",   critical:true,  today:false },
                 { label:"Fuori Uso",value:fuoriUso.length,  color:"var(--fuori-uso-text)",     icon:"●", tab:"fuoriuso", critical:false, today:false },
                 { label:"Oggi",     value:todayCount,       color:ORANGE,                      icon:"◆", tab:"active",   critical:false, today:true  },
+                { label:"Attività", value:attivitaAperte.length, color:"#06b6d4",              icon:"◈", tab:"attivita", critical:false, today:false },
               ].map(s=>{
                 const isActive = dashTab===s.tab && (s.critical===filterCritical) && (s.today===filterToday);
                 return (
                   <div key={s.label} onClick={()=>{ setDashTab(s.tab); setFilterCritical(s.critical); setFilterToday(s.today); }}
-                    style={{ flex:1, minWidth:70, background: isActive ? s.color+"22" : "var(--card)",
+                    style={{ flex:1, minWidth:0, background: isActive ? s.color+"22" : "var(--card)",
                       border:`1px solid ${isActive ? s.color : s.color+"33"}`,
-                      borderTop:`3px solid ${s.color}`, borderRadius:10, padding:"13px 11px",
+                      borderTop:`3px solid ${s.color}`, borderRadius:10, padding:"13px 6px",
                       cursor:"pointer", transition:"all .15s", transform: isActive ? "translateY(-2px)" : "none",
                       boxShadow: isActive ? `0 4px 16px ${s.color}33` : "none" }}>
-                    <div style={{ fontSize:9, color:"var(--sub)", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{s.icon} {s.label.toUpperCase()}</div>
+                    <div style={{ fontSize:9, color:"var(--sub)", letterSpacing:1, fontWeight:700, marginBottom:4 }}>{s.icon} {s.label.toUpperCase()}</div>
                     <div style={{ fontSize:28, fontWeight:900, color:s.color, fontFamily:"Barlow Condensed, sans-serif", lineHeight:1 }}>{booting ? "…" : s.value}</div>
                     {isActive && <div style={{ fontSize:8, color:s.color, marginTop:4, letterSpacing:1, fontWeight:700 }}>▼ SELEZIONATO</div>}
                   </div>
                 );
               })}
             </div>
-
-            {/* BARRA ATTIVITÀ DI LAVORO */}
-            {(() => {
-              const sel = dashTab === "attivita";
-              const daPreparare = attivita.filter(a => a.stato === "da_preparare").length;
-              return (
-                <div onClick={()=>{ playClick("soft"); setDashTab(sel ? "active" : "attivita"); setFilterCritical(false); setFilterToday(false); }}
-                  style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, cursor:"pointer", background: sel ? "#06b6d422" : "var(--card)",
-                    border:`1px solid ${sel ? "#06b6d4" : "#06b6d433"}`, borderLeft:"3px solid #06b6d4", borderRadius:10, padding:"11px 14px", transition:"all .15s" }}>
-                  <span style={{ fontSize:22 }}>🧰</span>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:9, color:"var(--sub)", letterSpacing:1.5, fontWeight:700 }}>ATTIVITÀ DI LAVORO</div>
-                    <div style={{ fontSize:13, color:"var(--text)", fontWeight:600 }}>
-                      {booting ? "…" : attivitaAperte.length === 0 ? "Nessuna attività aperta" : `${attivitaAperte.length} apert${attivitaAperte.length===1?"a":"e"}${daPreparare ? ` · ${daPreparare} da preparare` : ""}`}
-                    </div>
-                  </div>
-                  <span style={{ fontFamily:"Barlow Condensed, sans-serif", fontWeight:900, fontSize:26, color:"#06b6d4" }}>{booting ? "" : attivitaAperte.length}</span>
-                  <span style={{ color:"#06b6d4", fontSize:12, fontWeight:700 }}>{sel ? "▲" : "▼"}</span>
-                </div>
-              );
-            })()}
 
             {/* TAB ATTIVITÀ */}
             {dashTab==="attivita" && (

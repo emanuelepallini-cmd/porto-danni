@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="it" translate="no">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google" content="notranslate">
+<title>Modulo d'ordine – SegnalaOra</title>
+<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/vendita/stile.css">
+<style>
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+  @media(max-width:640px){.form-grid{grid-template-columns:1fr}}
+  .warn{color:#fbbf24;font-size:13px;margin-top:6px}
+  .tot td:last-child{text-align:right;white-space:nowrap}
+  .tot tr.b td{font-weight:800;font-size:16px}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="logo" href="/vendita/">Segnala<span>Ora</span></a><nav><a href="/vendita/condizioni.html">Condizioni</a></nav></div></header>
+
+<main class="doc">
+  <div class="no-print">
+    <h1>Modulo d'ordine</h1>
+    <p class="muted">Compila i campi: il documento qui sotto si aggiorna da solo. Poi "Stampa / Salva PDF", fai firmare il cliente e conserva la copia.</p>
+    <div class="note">Per il fornitore: i dati in azzurro (tua P.IVA, sede) si impostano una volta sola in cima al codice di questa pagina, nella sezione <code>FORNITORE</code>. Lì scegli anche il regime fiscale (forfettario o ordinario).</div>
+
+    <div class="card" style="margin:20px 0">
+      <h3>1. Piano</h3>
+      <div class="form-grid">
+        <div><label class="f" for="piano">Piano</label>
+          <select class="t" id="piano"><option value="base">Base – fino a 20 mezzi – 19 €/mese</option><option value="plus">Plus – fino a 100 mezzi – 39 €/mese</option><option value="illimitato">Senza limiti – 79 €/mese</option></select></div>
+        <div><label class="f" for="mezzi">Numero di mezzi</label><input class="t" id="mezzi" type="number" min="1" value="10"><div class="warn" id="warnMezzi"></div></div>
+        <div><label class="f" for="fatt">Fatturazione</label>
+          <select class="t" id="fatt"><option value="mensile">Mensile</option><option value="annuale">Annuale anticipata (2 mesi omaggio)</option></select></div>
+        <div><label class="f" for="inizio">Data di inizio servizio</label><input class="t" id="inizio" type="date"></div>
+      </div>
+      <label style="display:flex;gap:10px;margin-top:16px"><input type="checkbox" id="founding"> Offerta Founding Member: 50% di sconto per 12 mesi</label>
+      <label style="display:flex;gap:10px;margin-top:8px"><input type="checkbox" id="prova" checked> Include prova gratuita di 30 giorni prima della prima fattura</label>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <h3>2. Dati del cliente</h3>
+      <div class="form-grid">
+        <div><label class="f" for="rs">Ragione sociale *</label><input class="t" id="rs"></div>
+        <div><label class="f" for="piva">P.IVA / Codice fiscale *</label><input class="t" id="piva"></div>
+        <div style="grid-column:1/-1"><label class="f" for="sede">Sede legale *</label><input class="t" id="sede"></div>
+        <div><label class="f" for="sdi">Codice destinatario SDI</label><input class="t" id="sdi" maxlength="7"></div>
+        <div><label class="f" for="pec">PEC</label><input class="t" id="pec" type="email"></div>
+        <div><label class="f" for="ref">Referente (nome e ruolo) *</label><input class="t" id="ref"></div>
+        <div><label class="f" for="email">Email del referente *</label><input class="t" id="email" type="email"></div>
+        <div><label class="f" for="tel">Telefono</label><input class="t" id="tel"></div>
+        <div><label class="f" for="pag">Metodo di pagamento</label>
+          <select class="t" id="pag"><option>Bonifico bancario</option><option>Addebito SEPA</option><option>Carta di credito</option></select></div>
+        <div style="grid-column:1/-1"><label class="f" for="note">Note (sedi, personalizzazioni, accordi particolari)</label><textarea class="t" id="note" rows="2"></textarea></div>
+      </div>
+    </div>
+
+    <div class="doc-actions">
+      <button class="btn btn-primary" onclick="print()">Stampa / Salva PDF</button>
+      <button class="btn btn-ghost" id="inviaMail">Invia riepilogo via email</button>
+    </div>
+    <hr style="border:0;border-top:1px solid var(--border);margin:10px 0 30px">
+  </div>
+
+  <!-- DOCUMENTO STAMPABILE -->
+  <article id="doc">
+    <h1>Modulo d'ordine SegnalaOra</h1>
+    <p class="muted">N. <span id="dNum"></span> · del <span id="dData"></span></p>
+
+    <h2>Fornitore</h2>
+    <p id="dForn"></p>
+
+    <h2>Cliente</h2>
+    <table>
+      <tr><th style="width:38%">Ragione sociale</th><td id="dRs"></td></tr>
+      <tr><th>P.IVA / C.F.</th><td id="dPiva"></td></tr>
+      <tr><th>Sede legale</th><td id="dSede"></td></tr>
+      <tr><th>Codice SDI / PEC</th><td id="dSdi"></td></tr>
+      <tr><th>Referente</th><td id="dRef"></td></tr>
+      <tr><th>Contatti</th><td id="dCont"></td></tr>
+    </table>
+
+    <h2>Servizio ordinato</h2>
+    <table>
+      <tr><th style="width:38%">Piano</th><td id="dPiano"></td></tr>
+      <tr><th>Mezzi dichiarati</th><td id="dMezzi"></td></tr>
+      <tr><th>Durata e rinnovo</th><td id="dDurata"></td></tr>
+      <tr><th>Inizio servizio</th><td id="dInizio"></td></tr>
+      <tr><th>Pagamento</th><td id="dPag"></td></tr>
+      <tr><th>Note</th><td id="dNote"></td></tr>
+    </table>
+
+    <h2>Corrispettivi</h2>
+    <table class="tot" id="dTot"></table>
+    <p class="small muted" id="dFisc"></p>
+
+    <h2>Documenti contrattuali</h2>
+    <p>Il Cliente dichiara di aver ricevuto, letto e accettato le Condizioni Generali di Servizio, l'Accordo sul trattamento dei dati personali (art. 28 GDPR) e i Livelli di servizio (SLA) nella versione 1.0, disponibili su segnalaora.com, che formano parte integrante del presente ordine.</p>
+
+    <div class="firma"><div>Luogo e data</div><div>Timbro e firma del Cliente</div></div>
+
+    <h2>Approvazione specifica (artt. 1341 e 1342 c.c.)</h2>
+    <p>Il Cliente approva specificamente le clausole delle Condizioni Generali: 5 (rinnovo automatico e recesso), 6.3 (sospensione per mancato pagamento), 7 (modifiche di prezzo e condizioni), 12.2 (cancellazione dei dati dopo 30 giorni), 14 (limitazione di responsabilità), 15 (evoluzione del Servizio), 16 (sospensione), 17 (clausola risolutiva espressa), 21 (foro competente esclusivo).</p>
+    <div class="firma"><div>Luogo e data</div><div>Timbro e firma del Cliente</div></div>
+
+    <div class="firma"><div>Per accettazione – il Fornitore</div><div></div></div>
+  </article>
+</main>
+
+<script>
+/* ===== FORNITORE: compila una volta sola ===== */
+var FORNITORE = {
+  nome: "Emanuele Pallini – SegnalaOra",
+  sede: "[indirizzo], 57025 Piombino (LI)",
+  piva: "[P.IVA]",
+  pec:  "[PEC]",
+  email:"info@segnalaora.com",
+  iban: "[IBAN per bonifico]",
+  regime: "forfettario"          // "forfettario" oppure "ordinario"
+};
+/* ============================================= */
+
+var PIANI = { base:{n:"Base",p:19,max:20}, plus:{n:"Plus",p:39,max:100}, illimitato:{n:"Senza limiti",p:79,max:Infinity} };
+function $(i){return document.getElementById(i);}
+function eur(n){return n.toLocaleString("it-IT",{style:"currency",currency:"EUR",minimumFractionDigits:2});}
+function ph(v,t){return v?esc(v):'<span class="ph">'+t+'</span>';}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+var oggi=new Date(), num="SO-"+oggi.getFullYear()+"-"+String(oggi.getTime()).slice(-5);
+try{ var q=new URLSearchParams(location.search).get("piano"); if(q&&PIANI[q]) $("piano").value=q; }catch(e){}
+$("inizio").value=oggi.toISOString().slice(0,10);
+
+function aggiorna(){
+  var pk=$("piano").value, P=PIANI[pk], mezzi=+$("mezzi").value||0, ann=$("fatt").value==="annuale", fnd=$("founding").checked, prova=$("prova").checked;
+  $("warnMezzi").textContent = mezzi>P.max ? "Attenzione: il piano "+P.n+" copre fino a "+P.max+" mezzi. Scegli un piano superiore." : "";
+
+  var mese = fnd ? P.p*0.5 : P.p;
+  var rows=[["Canone di listino piano "+P.n, eur(P.p)+" / mese"]];
+  if(fnd) rows.push(["Sconto Founding Member 50% (primi 12 mesi)", "– "+eur(P.p*0.5)+" / mese"]);
+  var periodo, imp;
+  if(ann){ imp = fnd ? (P.p*0.5*12 - P.p*0.5*2) : P.p*10; periodo="Primo anno (12 mesi, 2 in omaggio)"; }
+  else  { imp = mese; periodo="Primo mese"; }
+  rows.push(["Canone mensile applicato", eur(mese)]);
+  var fisc, tot=imp, extra=[];
+  if(FORNITORE.regime==="forfettario"){
+    fisc="Operazione senza applicazione dell'IVA ai sensi dell'art. 1, commi 54-89, L. 190/2014 (regime forfettario).";
+    if(imp>77.47){ extra.push(["Imposta di bollo (art. 6 Tariffa DPR 642/1972)", eur(2)]); tot+=2; fisc+=" Imposta di bollo di 2 € a carico del Cliente sulle fatture superiori a 77,47 €."; }
+  } else {
+    extra.push(["IVA 22%", eur(imp*0.22)]); tot=imp*1.22; fisc="Importi soggetti a IVA ordinaria al 22%.";
+  }
+  rows.push([periodo+" – imponibile", eur(imp)]);
+  rows=rows.concat(extra);
+  rows.push(["Totale prima fattura", eur(tot)]);
+  $("dTot").innerHTML=rows.map(function(r,i){return '<tr'+(i===rows.length-1?' class="b"':'')+'><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>';}).join("");
+  $("dFisc").textContent=fisc+(prova?" La prima fattura viene emessa al termine dei 30 giorni di prova gratuita.":"");
+
+  var ini=$("inizio").value?new Date($("inizio").value).toLocaleDateString("it-IT"):"";
+  $("dNum").textContent=num; $("dData").textContent=oggi.toLocaleDateString("it-IT");
+  $("dForn").innerHTML=esc(FORNITORE.nome)+" · "+esc(FORNITORE.sede)+" · P.IVA "+esc(FORNITORE.piva)+" · PEC "+esc(FORNITORE.pec)+" · "+esc(FORNITORE.email);
+  $("dRs").innerHTML=ph($("rs").value,"[ragione sociale]");
+  $("dPiva").innerHTML=ph($("piva").value,"[P.IVA]");
+  $("dSede").innerHTML=ph($("sede").value,"[sede legale]");
+  $("dSdi").innerHTML=ph($("sdi").value,"[SDI]")+" / "+ph($("pec").value,"[PEC]");
+  $("dRef").innerHTML=ph($("ref").value,"[nome e ruolo]");
+  $("dCont").innerHTML=ph($("email").value,"[email]")+($("tel").value?" · "+esc($("tel").value):"");
+  $("dPiano").textContent=P.n+" ("+(P.max===Infinity?"mezzi illimitati":"fino a "+P.max+" mezzi")+")";
+  $("dMezzi").textContent=mezzi;
+  $("dDurata").textContent=ann?"Annuale, rinnovo automatico; disdetta con 30 giorni di preavviso":"Mensile, rinnovo automatico; disdetta con 15 giorni di preavviso";
+  $("dInizio").textContent=ini+(prova?" (prova gratuita di 30 giorni)":"");
+  $("dPag").innerHTML=esc($("pag").value)+($("pag").value==="Bonifico bancario"?" – IBAN "+esc(FORNITORE.iban):"")+", entro 15 giorni dalla fattura";
+  $("dNote").innerHTML=$("note").value?esc($("note").value):"—";
+  return {P:P,mezzi:mezzi,ann:ann,fnd:fnd,mese:mese,tot:tot};
+}
+document.querySelectorAll("input,select,textarea").forEach(function(el){el.addEventListener("input",aggiorna);el.addEventListener("change",aggiorna);});
+aggiorna();
+
+$("inviaMail").addEventListener("click",function(){
+  var r=aggiorna();
+  var b="Modulo d'ordine "+num+"\n\nCliente: "+$("rs").value+" ("+$("piva").value+")\nReferente: "+$("ref").value+" – "+$("email").value+
+    "\nPiano: "+r.P.n+" – mezzi: "+r.mezzi+"\nFatturazione: "+(r.ann?"annuale":"mensile")+(r.fnd?" – Founding Member -50% per 12 mesi":"")+
+    "\nCanone mensile: "+eur(r.mese)+"\nTotale prima fattura: "+eur(r.tot)+"\n\nIn allegato il modulo firmato.";
+  location.href="mailto:"+encodeURIComponent($("email").value||"")+"?cc=info@segnalaora.com&subject="+encodeURIComponent("Ordine SegnalaOra "+num)+"&body="+encodeURIComponent(b);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it" translate="no">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google" content="notranslate">
+<title>Livelli di servizio – SegnalaOra</title>
+<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/vendita/stile.css">
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="logo" href="/vendita/">Segnala<span>Ora</span></a><nav><a href="/vendita/condizioni.html">Condizioni</a></nav></div></header>
+
+<main class="doc">
+  <h1>Livelli di servizio (SLA)</h1>
+  <p class="muted">Allegato alle Condizioni Generali di Servizio SegnalaOra · Versione 1.0</p>
+
+  <div class="note no-print"><b>Non firmare impegni di disponibilità finché il database è sul piano gratuito</b>, che si mette in pausa da solo: passa prima a Supabase Pro (backup giornalieri e nessuna pausa). I valori qui sotto sono pensati per un'attività gestita da una persona sola: sono realistici, non promettere di più.</div>
+  <div class="doc-actions"><button class="btn btn-primary btn-sm" onclick="print()">Stampa / Salva PDF</button></div>
+
+  <h2>1. Disponibilità</h2>
+  <p>Il Fornitore si impegna a mantenere il Servizio disponibile almeno il <b>99,5%</b> del tempo in ogni mese solare (circa 3 ore e 40 minuti di indisponibilità massima al mese).</p>
+  <p>Non si conteggiano: manutenzioni programmate comunicate con almeno 48 ore di anticipo e svolte preferibilmente tra le 22:00 e le 6:00; problemi di rete, dispositivi o configurazioni del Cliente; interruzioni generalizzate dei fornitori di infrastruttura (Allegato A del DPA); cause di forza maggiore; sospensioni previste dalle Condizioni.</p>
+
+  <h2>2. Assistenza</h2>
+  <table>
+    <tr><th>Canale</th><td>Email a info@segnalaora.com <span class="ph">[ed eventuale numero WhatsApp aziendale]</span></td></tr>
+    <tr><th>Orari</th><td>Lunedì–venerdì, 9:00–18:00, esclusi festivi nazionali</td></tr>
+    <tr><th>Lingue</th><td>Italiano, inglese</td></tr>
+  </table>
+
+  <h2>3. Tempi di presa in carico</h2>
+  <table>
+    <tr><th>Gravità</th><th>Esempio</th><th>Prima risposta</th><th>Obiettivo di soluzione</th></tr>
+    <tr><td><b>Critica</b></td><td>Servizio non raggiungibile per tutti gli Utenti</td><td>4 ore lavorative</td><td>1 giorno lavorativo</td></tr>
+    <tr><td><b>Alta</b></td><td>Una funzione principale non va (es. invio foto, notifiche)</td><td>1 giorno lavorativo</td><td>3 giorni lavorativi</td></tr>
+    <tr><td><b>Normale</b></td><td>Problemi minori, domande d'uso, richieste di modifica</td><td>2 giorni lavorativi</td><td>Pianificato con il Cliente</td></tr>
+  </table>
+  <p class="muted small">L'obiettivo di soluzione è un impegno di massimo sforzo; per i problemi causati da fornitori terzi può comprendere una soluzione temporanea.</p>
+  <p>Per i clienti del piano "Senza limiti" i tempi di prima risposta sono dimezzati.</p>
+
+  <h2>4. Crediti di servizio</h2>
+  <p>Se la disponibilità mensile scende sotto il 99,5%, il Cliente ha diritto a uno sconto sul canone del mese successivo:</p>
+  <table>
+    <tr><th>Disponibilità mensile</th><th>Credito sul canone di quel mese</th></tr>
+    <tr><td>da 99,0% a meno di 99,5%</td><td>10%</td></tr>
+    <tr><td>da 97,0% a meno di 99,0%</td><td>25%</td></tr>
+    <tr><td>meno di 97,0%</td><td>50%</td></tr>
+  </table>
+  <p>Il credito va richiesto via email entro 30 giorni dalla fine del mese interessato. I crediti non superano il 50% del canone mensile, non sono convertibili in denaro e costituiscono l'unico rimedio per il mancato rispetto della disponibilità, salvo dolo o colpa grave.</p>
+
+  <h2>5. Backup e continuità</h2>
+  <ul>
+    <li>Backup automatici giornalieri del database, conservati per <span class="ph">[7]</span> giorni.</li>
+    <li>Cestino applicativo: le segnalazioni eliminate restano recuperabili per 30 giorni.</li>
+    <li>Esportazione CSV disponibile in ogni momento per il Cliente.</li>
+  </ul>
+
+  <h2>6. Attivazione</h2>
+  <p>Entro <b>3 giorni lavorativi</b> dalla firma del Modulo d'ordine (o dall'inizio della prova) il Fornitore configura elenco mezzi, categorie di danno e ruoli forniti dal Cliente e svolge una sessione di avvio a distanza di circa 30 minuti.</p>
+</main>
+</body>
+</html>

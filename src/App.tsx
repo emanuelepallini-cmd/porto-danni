@@ -255,7 +255,6 @@ function formatMB(byte: number) { return byte >= 1048576 ? (byte/1048576).toLoca
 
 // ─── Comunicazioni (ordini di servizio): testo lungo, PDF, presa visione ──────
 const COM_BUCKET = "comunicazioni";
-const COM_MAX_TESTO = 3000;
 const COM_MAX_ALLEGATI = 5;
 const COM_COLORE = "#f59e0b";
 const COM_GIORNI_DA_LEGGERE = 30;
@@ -3655,11 +3654,11 @@ export default function App() {
               </div>
               <div>
                 <Label text="Testo"/>
-                <textarea rows={9} maxLength={COM_MAX_TESTO} value={comForm.testo} onChange={e=>{ setComForm(f=>({...f,testo:e.target.value})); setComErrors(x=>({...x,testo:false})); }}
+                <textarea rows={9} value={comForm.testo} onChange={e=>{ setComForm(f=>({...f,testo:e.target.value})); setComErrors(x=>({...x,testo:false})); }}
                   placeholder="Scrivi la comunicazione per intero, senza abbreviazioni. Puoi andare a capo." style={{ ...inp, lineHeight:1.6, resize:"vertical", borderColor: comErrors.testo?RED:BORDER }}/>
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"var(--sub)", marginTop:5, gap:10 }}>
                   <span>{comErrors.testo ? <span style={{ color:RED }}>⚠ Scrivi un testo o allega un PDF</span> : "Sul telefono la notifica mostra solo l'inizio: il testo intero si legge nell'app."}</span>
-                  <span style={{ flexShrink:0, color: comForm.testo.length > COM_MAX_TESTO - 200 ? ORANGE : "var(--sub)" }}>{comForm.testo.length}/{COM_MAX_TESTO}</span>
+                  <span style={{ flexShrink:0 }}>{comForm.testo.length} caratteri</span>
                 </div>
               </div>
               <div>
@@ -3683,7 +3682,7 @@ export default function App() {
                 {comNuovi.length < COM_MAX_ALLEGATI && (
                   <button className="upload-btn" onClick={()=>comFileRef.current?.click()} disabled={comFileBusy||comBusy}
                     style={{ width:"100%", padding:"20px", background:"var(--input-bg)", border:`2px dashed ${BORDER}`, borderRadius:10, color:"var(--sub)", cursor:"pointer", fontSize:14 }}>
-                    {comFileBusy ? "⏳  Preparazione file…" : comNuovi.length ? `📎  Aggiungi altri file (${comNuovi.length}/${COM_MAX_ALLEGATI})` : "📎  Allega PDF (es. servizio C.P.) o foto"}
+                    {comFileBusy ? "⏳  Preparazione file…" : comNuovi.length ? `📎  Aggiungi altri file (${comNuovi.length}/${COM_MAX_ALLEGATI})` : "📎  Allega PDF o foto"}
                   </button>
                 )}
               </div>

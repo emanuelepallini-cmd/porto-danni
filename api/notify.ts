@@ -44,6 +44,16 @@ async function loadAllTokens(): Promise<string[]> {
   return Array.from(new Set(rows.map((x) => x.token).filter(Boolean)));
 }
 
+// Solo i telefoni registrati con uno dei nomi indicati (maiuscole/minuscole non contano)
+async function loadTokensFor(usernames: string[]): Promise<string[]> {
+  const want = new Set(usernames.map((n) => String(n || '').trim().toLowerCase()).filter(Boolean));
+  if (!want.size) return [];
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/fcm_tokens?select=token,username`, { headers: sbHeaders });
+  if (!r.ok) throw new Error('Lettura token fallita: ' + r.status);
+  const rows = (await r.json()) as { token: string; username: string | null }[];
+  return Array.from(new Set(rows.filter((x) => x.token && want.has(String(x.username || '').trim().toLowerCase())).map((x) => x.token)));
+}
+
 async function deleteTokens(tokens: string[]) {
   if (!tokens.length) return;
   const list = tokens.map((t) => `"${t}"`).join(',');
@@ -57,10 +67,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { title, body, url, delay, all, exclude, dryRun } = req.body as {
+  const { title, body, url, delay, all, exclude, dryRun, usernames } = req.body as {
     dryRun?: boolean;    // true = verifica i telefoni senza consegnare nulla
     tokens?: string[];
     all?: boolean;       // true = invia a tutti i telefoni registrati
+    usernames?: string[]; // invia solo ai telefoni di questi nomi (comunicazioni a gruppi)
     exclude?: string;    // token da escludere (chi ha generato l'evento)
     title: string;
     body: string;
@@ -77,6 +88,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let tokens: string[] = Array.isArray(req.body?.tokens) ? req.body.tokens : [];
   if (all) {
     try { tokens = await loadAllTokens(); } catch (e) { return res.status(500).json({ error: String(e) }); }
+  } else if (Array.isArray(usernames)) {
+    try { tokens = await loadTokensFor(usernames.slice(0, 500)); } catch (e) { return res.status(500).json({ error: String(e) }); }
   }
   if (exclude) tokens = tokens.filter((t) => t !== exclude);
   if (tokens.length === 0) {
